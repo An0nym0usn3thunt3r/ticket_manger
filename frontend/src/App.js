@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 import axios from "axios";
+import { motion } from "framer-motion";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { PaymentElement, Elements, useStripe, useElements } from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
 
 // Auth Context
 const AuthContext = React.createContext();
@@ -78,1137 +85,2145 @@ const useAuth = () => {
 const Navbar = () => {
   const { user, logout } = useAuth();
   const [activeView, setActiveView] = useState('home');
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    toast.success("Successfully logged out!");
+  };
 
   return (
-    <nav className="navbar">
+    <motion.nav 
+      className="navbar"
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
       <div className="nav-container">
-        <div className="nav-logo">
+        <motion.div 
+          className="nav-logo"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
           <span className="logo-icon">🎫</span>
           <span className="logo-text">TicketVerse</span>
-        </div>
+        </motion.div>
         
-        <div className="nav-links">
-          <button 
+        <div className={`nav-links ${menuOpen ? 'active' : ''}`}>
+          <motion.button 
             className={`nav-btn ${activeView === 'home' ? 'active' : ''}`}
             onClick={() => setActiveView('home')}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
             Home
-          </button>
-          <button 
+          </motion.button>
+          <motion.button 
             className={`nav-btn ${activeView === 'events' ? 'active' : ''}`}
             onClick={() => setActiveView('events')}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
             Events
-          </button>
+          </motion.button>
           {user && (
-            <button 
+            <motion.button 
               className={`nav-btn ${activeView === 'tickets' ? 'active' : ''}`}
               onClick={() => setActiveView('tickets')}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               My Tickets
-            </button>
+            </motion.button>
           )}
           {user && (user.role === 'admin' || user.role === 'super_admin') && (
-            <button 
+            <motion.button 
               className={`nav-btn ${activeView === 'admin' ? 'active' : ''}`}
               onClick={() => setActiveView('admin')}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              Admin Panel
-            </button>
+              Admin
+            </motion.button>
           )}
-        </div>
-
-        <div className="nav-auth">
+          
           {user ? (
-            <div className="user-menu">
-              <span className="user-name">Hello, {user.first_name}</span>
-              <button className="logout-btn" onClick={logout}>Logout</button>
-            </div>
+            <motion.button 
+              className="auth-btn logout-btn"
+              onClick={handleLogout}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Logout
+            </motion.button>
           ) : (
-            <div className="auth-buttons">
-              <button 
-                className="login-btn"
+            <>
+              <motion.button 
+                className={`auth-btn login-btn ${activeView === 'login' ? 'active' : ''}`}
                 onClick={() => setActiveView('login')}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
                 Login
-              </button>
-              <button 
-                className="signup-btn"
+              </motion.button>
+              <motion.button 
+                className={`auth-btn register-btn ${activeView === 'register' ? 'active' : ''}`}
                 onClick={() => setActiveView('register')}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
-                Sign Up
-              </button>
+                Register
+              </motion.button>
+            </>
+          )}
+        </div>
+        
+        <div className="hamburger" onClick={() => setMenuOpen(!menuOpen)}>
+          <div className={`bar ${menuOpen ? 'active' : ''}`}></div>
+          <div className={`bar ${menuOpen ? 'active' : ''}`}></div>
+          <div className={`bar ${menuOpen ? 'active' : ''}`}></div>
+        </div>
+      </div>
+    </motion.nav>
+  );
+};
+
+const Login = () => {
+  const { login } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    
+    const result = await login(email, password);
+    
+    if (result.success) {
+      toast.success('Login successful!');
+    } else {
+      setError(result.error);
+      toast.error(result.error);
+    }
+    
+    setIsLoading(false);
+  };
+
+  return (
+    <motion.div 
+      className="auth-form-container"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      <h2>Login</h2>
+      <form onSubmit={handleSubmit} className="auth-form">
+        <div className="form-group">
+          <label>Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label>Password</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        {error && <div className="error-message">{error}</div>}
+        <motion.button 
+          type="submit" 
+          className="submit-btn"
+          disabled={isLoading}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          {isLoading ? 'Loading...' : 'Login'}
+        </motion.button>
+      </form>
+    </motion.div>
+  );
+};
+
+const Register = () => {
+  const { register } = useAuth();
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    password: '',
+    confirm_password: '',
+    phone: '',
+    ieee_member: false,
+    ieee_member_id: ''
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    
+    if (formData.password !== formData.confirm_password) {
+      setError('Passwords do not match');
+      setIsLoading(false);
+      return;
+    }
+    
+    const userData = {
+      first_name: formData.first_name,
+      last_name: formData.last_name,
+      email: formData.email,
+      password: formData.password,
+      phone: formData.phone,
+      ieee_member: formData.ieee_member,
+      ieee_member_id: formData.ieee_member ? formData.ieee_member_id : null
+    };
+    
+    const result = await register(userData);
+    
+    if (result.success) {
+      toast.success('Registration successful!');
+    } else {
+      setError(result.error);
+      toast.error(result.error);
+    }
+    
+    setIsLoading(false);
+  };
+
+  return (
+    <motion.div 
+      className="auth-form-container"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      <h2>Register</h2>
+      <form onSubmit={handleSubmit} className="auth-form">
+        <div className="form-row">
+          <div className="form-group">
+            <label>First Name</label>
+            <input
+              type="text"
+              name="first_name"
+              value={formData.first_name}
+              onChange={handleChange}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Last Name</label>
+            <input
+              type="text"
+              name="last_name"
+              value={formData.last_name}
+              onChange={handleChange}
+              required
+            />
+          </div>
+        </div>
+        <div className="form-group">
+          <label>Email</label>
+          <input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Password</label>
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Confirm Password</label>
+            <input
+              type="password"
+              name="confirm_password"
+              value={formData.confirm_password}
+              onChange={handleChange}
+              required
+            />
+          </div>
+        </div>
+        <div className="form-group">
+          <label>Phone</label>
+          <input
+            type="tel"
+            name="phone"
+            value={formData.phone}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="form-group checkbox-group">
+          <input
+            type="checkbox"
+            name="ieee_member"
+            id="ieee_member"
+            checked={formData.ieee_member}
+            onChange={handleChange}
+          />
+          <label htmlFor="ieee_member">I am an IEEE member</label>
+        </div>
+        {formData.ieee_member && (
+          <motion.div 
+            className="form-group"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            transition={{ duration: 0.3 }}
+          >
+            <label>IEEE Member ID</label>
+            <input
+              type="text"
+              name="ieee_member_id"
+              value={formData.ieee_member_id}
+              onChange={handleChange}
+              required={formData.ieee_member}
+            />
+            <div className="file-upload">
+              <label>Upload IEEE Member ID Card</label>
+              <input
+                type="file"
+                name="ieee_id_card"
+                accept="image/*,.pdf"
+              />
             </div>
+          </motion.div>
+        )}
+        {error && <div className="error-message">{error}</div>}
+        <motion.button 
+          type="submit" 
+          className="submit-btn"
+          disabled={isLoading}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          {isLoading ? 'Loading...' : 'Register'}
+        </motion.button>
+      </form>
+    </motion.div>
+  );
+};
+
+const EventCard = ({ event, onSelect }) => {
+  return (
+    <motion.div 
+      className="event-card"
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={() => onSelect(event)}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="event-image">
+        {event.image_url ? (
+          <img src={event.image_url} alt={event.title} />
+        ) : (
+          <div className="placeholder-image">🎭</div>
+        )}
+      </div>
+      <div className="event-details">
+        <h3>{event.title}</h3>
+        <p className="event-date">
+          {new Date(event.start_date).toLocaleDateString()} - {new Date(event.end_date).toLocaleDateString()}
+        </p>
+        <p className="event-location">{event.location}</p>
+        <div className="event-price">
+          <span className="price-tag">
+            From ${event.price_regular}
+          </span>
+          {event.price_ieee_member && (
+            <span className="ieee-price-tag">
+              IEEE: ${event.price_ieee_member}
+            </span>
           )}
         </div>
       </div>
-      <ViewRouter activeView={activeView} setActiveView={setActiveView} />
-    </nav>
+    </motion.div>
   );
 };
 
-const ViewRouter = ({ activeView, setActiveView }) => {
+const Events = () => {
   const { user } = useAuth();
-
-  const renderView = () => {
-    switch (activeView) {
-      case 'home':
-        return <HomePage setActiveView={setActiveView} />;
-      case 'events':
-        return <EventsPage setActiveView={setActiveView} />;
-      case 'login':
-        return <LoginPage setActiveView={setActiveView} />;
-      case 'register':
-        return <RegisterPage setActiveView={setActiveView} />;
-      case 'tickets':
-        return user ? <TicketsPage /> : <LoginPage setActiveView={setActiveView} />;
-      case 'admin':
-        return (user && (user.role === 'admin' || user.role === 'super_admin')) 
-          ? <AdminPanel /> 
-          : <HomePage setActiveView={setActiveView} />;
-      default:
-        return <HomePage setActiveView={setActiveView} />;
-    }
-  };
-
-  return <div className="view-container">{renderView()}</div>;
-};
-
-const HomePage = ({ setActiveView }) => {
-  const [featuredEvents, setFeaturedEvents] = useState([]);
-
-  useEffect(() => {
-    fetchFeaturedEvents();
-  }, []);
-
-  const fetchFeaturedEvents = async () => {
-    try {
-      const response = await axios.get(`${API}/events`);
-      setFeaturedEvents(response.data.slice(0, 3));
-    } catch (error) {
-      console.error('Error fetching events:', error);
-    }
-  };
-
-  return (
-    <div className="home-page">
-      <section className="hero-section">
-        <div className="hero-bg"></div>
-        <div className="hero-content">
-          <div className="hero-text">
-            <h1 className="hero-title">
-              Experience Amazing <span className="highlight">Events</span>
-            </h1>
-            <p className="hero-subtitle">
-              Book tickets for concerts, festivals, and live events. 
-              Get instant digital tickets with QR codes delivered to your email.
-            </p>
-            <button 
-              className="cta-button"
-              onClick={() => setActiveView('events')}
-            >
-              <span>Explore Events</span>
-              <div className="button-shine"></div>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section className="features-section">
-        <div className="container">
-          <h2 className="section-title">Why Choose TicketVerse?</h2>
-          <div className="features-grid">
-            <div className="feature-card">
-              <div className="feature-icon">⚡</div>
-              <h3>Instant Booking</h3>
-              <p>Book tickets instantly and get immediate confirmation</p>
-            </div>
-            <div className="feature-card">
-              <div className="feature-icon">📱</div>
-              <h3>Digital Tickets</h3>
-              <p>Get QR code tickets delivered straight to your email</p>
-            </div>
-            <div className="feature-card">
-              <div className="feature-icon">🔒</div>
-              <h3>Secure & Safe</h3>
-              <p>Your payments and personal data are completely secure</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {featuredEvents.length > 0 && (
-        <section className="featured-events">
-          <div className="container">
-            <h2 className="section-title">Featured Events</h2>
-            <div className="events-grid">
-              {featuredEvents.map(event => (
-                <EventCard key={event.id} event={event} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-    </div>
-  );
-};
-
-const EventsPage = ({ setActiveView }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
   useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const response = await axios.get(`${API}/events`);
+        setEvents(response.data);
+      } catch (error) {
+        toast.error('Failed to fetch events');
+        console.error('Error fetching events:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
     fetchEvents();
   }, []);
 
-  const fetchEvents = async () => {
-    try {
-      const response = await axios.get(`${API}/events`);
-      setEvents(response.data);
-    } catch (error) {
-      console.error('Error fetching events:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleEventSelect = (event) => {
+    setSelectedEvent(event);
   };
 
-  const filteredEvents = events.filter(event => {
-    const matchesSearch = event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || event.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
-
-  const categories = ['all', ...new Set(events.map(event => event.category))];
+  const handleBackToEvents = () => {
+    setSelectedEvent(null);
+  };
 
   if (loading) {
     return <div className="loading">Loading events...</div>;
   }
 
   return (
-    <div className="events-page">
-      <div className="container">
-        <div className="page-header">
-          <h1>All Events</h1>
-          <div className="search-filters">
-            <input
-              type="text"
-              placeholder="Search events..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="category-filter"
-            >
-              {categories.map(category => (
-                <option key={category} value={category}>
-                  {category === 'all' ? 'All Categories' : category}
-                </option>
-              ))}
-            </select>
+    <div className="events-container">
+      {selectedEvent ? (
+        <EventDetails event={selectedEvent} onBack={handleBackToEvents} />
+      ) : (
+        <>
+          <h2>Upcoming Events</h2>
+          <div className="events-grid">
+            {events.length > 0 ? (
+              events.map(event => (
+                <EventCard 
+                  key={event.id} 
+                  event={event} 
+                  onSelect={handleEventSelect} 
+                />
+              ))
+            ) : (
+              <p>No events available at the moment.</p>
+            )}
           </div>
-        </div>
-
-        <div className="events-grid">
-          {filteredEvents.map(event => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </div>
-
-        {filteredEvents.length === 0 && (
-          <div className="no-events">
-            <h3>No events found</h3>
-            <p>Try adjusting your search or category filter</p>
-          </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 };
 
-const EventCard = ({ event }) => {
-  const [showBooking, setShowBooking] = useState(false);
-
-  return (
-    <>
-      <div className="event-card" onClick={() => setShowBooking(true)}>
-        <div className="event-image">
-          {event.image_url ? (
-            <img src={event.image_url} alt={event.name} />
-          ) : (
-            <div className="placeholder-image">
-              <span className="event-icon">🎪</span>
-            </div>
-          )}
-          <div className="event-price">${event.price}</div>
-        </div>
-        <div className="event-details">
-          <h3 className="event-name">{event.name}</h3>
-          <p className="event-date">
-            📅 {new Date(event.date).toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })}
-          </p>
-          <p className="event-venue">📍 {event.venue}</p>
-          <p className="event-tickets">
-            🎫 {event.available_tickets} tickets available
-          </p>
-        </div>
-      </div>
-      
-      {showBooking && (
-        <BookingModal event={event} onClose={() => setShowBooking(false)} />
-      )}
-    </>
-  );
-};
-
-const BookingModal = ({ event, onClose }) => {
+const EventDetails = ({ event, onBack }) => {
   const { user } = useAuth();
-  const [bookingData, setBookingData] = useState({
-    customer_name: user ? `${user.first_name} ${user.last_name}` : '',
-    customer_email: user ? user.email : '',
-    customer_phone: '',
-    n8n_webhook_url: ''
-  });
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [ticketType, setTicketType] = useState('regular');
+  const [couponCode, setCouponCode] = useState('');
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [discount, setDiscount] = useState(0);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  // Calculate the base price based on ticket type and IEEE membership
+  const getBasePrice = () => {
+    if (ticketType === 'ieee' && user?.ieee_member) {
+      return event.price_ieee_member || event.price_regular;
+    }
+    return event.price_regular;
+  };
 
-    try {
-      const response = await axios.post(`${API}/tickets/book`, {
-        event_id: event.id,
-        ...bookingData
-      });
+  // Calculate the total price
+  const calculateTotal = () => {
+    const basePrice = getBasePrice();
+    const subtotal = basePrice * quantity;
+    const discountAmount = couponApplied ? subtotal * (discount / 100) : 0;
+    return subtotal - discountAmount;
+  };
 
-      setSuccess(true);
-      setTimeout(() => {
-        onClose();
-        setSuccess(false);
-      }, 3000);
-    } catch (error) {
-      alert(error.response?.data?.detail || 'Booking failed');
-    } finally {
-      setLoading(false);
+  const handleQuantityChange = (e) => {
+    setQuantity(Math.max(1, parseInt(e.target.value) || 1));
+  };
+
+  const handleTicketTypeChange = (e) => {
+    setTicketType(e.target.value);
+  };
+
+  const handleCouponChange = (e) => {
+    setCouponCode(e.target.value);
+    if (couponApplied) {
+      setCouponApplied(false);
+      setDiscount(0);
     }
   };
 
-  if (success) {
-    return (
-      <div className="modal-overlay" onClick={onClose}>
-        <div className="modal success-modal" onClick={e => e.stopPropagation()}>
-          <div className="success-content">
-            <div className="success-icon">✅</div>
-            <h2>Booking Confirmed!</h2>
-            <p>Your ticket has been booked successfully. You'll receive an email with your ticket details and QR code.</p>
-          </div>
+  const validateCoupon = async () => {
+    if (!couponCode.trim()) {
+      toast.error('Please enter a coupon code');
+      return;
+    }
+
+    setIsValidatingCoupon(true);
+    
+    try {
+      const response = await axios.post(`${API}/validate-coupon`, {
+        coupon_code: couponCode,
+        event_id: event.id
+      });
+      
+      if (response.data.valid) {
+        setCouponApplied(true);
+        setDiscount(response.data.discount_percentage);
+        toast.success(`Coupon applied! ${response.data.discount_percentage}% discount`);
+      } else {
+        toast.error('Invalid coupon code');
+        setCouponApplied(false);
+        setDiscount(0);
+      }
+    } catch (error) {
+      toast.error('Error validating coupon');
+      console.error('Error validating coupon:', error);
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
+  const handlePaymentMethodChange = (e) => {
+    setPaymentMethod(e.target.value);
+  };
+
+  const proceedToCheckout = () => {
+    if (!user) {
+      toast.error('Please login to purchase tickets');
+      return;
+    }
+    
+    if (ticketType === 'ieee' && !user.ieee_member) {
+      toast.error('You need to verify your IEEE membership to purchase IEEE member tickets');
+      return;
+    }
+    
+    setShowPaymentForm(true);
+  };
+
+  const handlePurchase = async () => {
+    if (!user) {
+      toast.error('Please login to purchase tickets');
+      return;
+    }
+    
+    setProcessingPayment(true);
+    
+    try {
+      // This would be integrated with your actual payment processing
+      const purchaseData = {
+        event_id: event.id,
+        quantity,
+        ticket_type: ticketType,
+        payment_method: paymentMethod,
+        total_amount: calculateTotal(),
+        coupon_code: couponApplied ? couponCode : null
+      };
+      
+      const response = await axios.post(`${API}/purchase-tickets`, purchaseData);
+      
+      toast.success('Tickets purchased successfully!');
+      setShowPaymentForm(false);
+      onBack(); // Return to events list
+      
+    } catch (error) {
+      toast.error('Failed to process payment');
+      console.error('Payment error:', error);
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+
+  return (
+    <motion.div 
+      className="event-details-container"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      <button 
+        className="back-button" 
+        onClick={onBack}
+      >
+        ← Back to Events
+      </button>
+      
+      <div className="event-details-content">
+        <div className="event-details-image">
+          {event.image_url ? (
+            <img src={event.image_url} alt={event.title} />
+          ) : (
+            <div className="placeholder-image-large">🎭</div>
+          )}
         </div>
+        
+        <div className="event-details-info">
+          <h1>{event.title}</h1>
+          
+          <div className="event-meta">
+            <div className="meta-item">
+              <span className="meta-icon">📅</span>
+              <span>
+                {new Date(event.start_date).toLocaleDateString()} - {new Date(event.end_date).toLocaleDateString()}
+              </span>
+            </div>
+            <div className="meta-item">
+              <span className="meta-icon">📍</span>
+              <span>{event.location}</span>
+            </div>
+            <div className="meta-item">
+              <span className="meta-icon">💰</span>
+              <span>
+                ${event.price_regular}
+                {event.price_ieee_member && (
+                  <span className="ieee-price"> (IEEE: ${event.price_ieee_member})</span>
+                )}
+              </span>
+            </div>
+          </div>
+          
+          <div className="event-description">
+            <h3>Description</h3>
+            <p>{event.description}</p>
+          </div>
+          
+          {!showPaymentForm ? (
+            <div className="ticket-purchase-form">
+              <h3>Purchase Tickets</h3>
+              
+              <div className="form-group">
+                <label>Ticket Type</label>
+                <select 
+                  value={ticketType} 
+                  onChange={handleTicketTypeChange}
+                  disabled={!user}
+                >
+                  <option value="regular">Regular Ticket</option>
+                  <option value="ieee" disabled={!user?.ieee_member}>
+                    IEEE Member Ticket {!user?.ieee_member && '(Verification Required)'}
+                  </option>
+                </select>
+              </div>
+              
+              <div className="form-group">
+                <label>Quantity</label>
+                <input 
+                  type="number" 
+                  min="1" 
+                  value={quantity}
+                  onChange={handleQuantityChange}
+                  disabled={!user}
+                />
+              </div>
+              
+              <div className="coupon-form">
+                <div className="form-group">
+                  <label>Coupon Code</label>
+                  <div className="coupon-input-group">
+                    <input 
+                      type="text" 
+                      value={couponCode}
+                      onChange={handleCouponChange}
+                      disabled={!user || isValidatingCoupon}
+                      placeholder="Enter coupon code"
+                    />
+                    <button 
+                      onClick={validateCoupon}
+                      disabled={!user || !couponCode || isValidatingCoupon}
+                      className="apply-coupon-btn"
+                    >
+                      {isValidatingCoupon ? 'Validating...' : 'Apply'}
+                    </button>
+                  </div>
+                </div>
+                
+                {couponApplied && (
+                  <div className="coupon-success">
+                    Coupon applied: {discount}% discount
+                  </div>
+                )}
+              </div>
+              
+              <div className="price-summary">
+                <div className="price-row">
+                  <span>Base Price:</span>
+                  <span>${getBasePrice()}</span>
+                </div>
+                <div className="price-row">
+                  <span>Quantity:</span>
+                  <span>x {quantity}</span>
+                </div>
+                {couponApplied && (
+                  <div className="price-row discount">
+                    <span>Discount ({discount}%):</span>
+                    <span>-${(getBasePrice() * quantity * (discount / 100)).toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="price-row total">
+                  <span>Total:</span>
+                  <span>${calculateTotal().toFixed(2)}</span>
+                </div>
+              </div>
+              
+              <motion.button 
+                className="purchase-btn"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={proceedToCheckout}
+                disabled={!user}
+              >
+                {user ? 'Proceed to Payment' : 'Login to Purchase Tickets'}
+              </motion.button>
+            </div>
+          ) : (
+            <div className="payment-form">
+              <h3>Payment Information</h3>
+              
+              <div className="form-group">
+                <label>Payment Method</label>
+                <div className="payment-methods">
+                  <div className="payment-method">
+                    <input 
+                      type="radio" 
+                      id="card" 
+                      name="paymentMethod" 
+                      value="card"
+                      checked={paymentMethod === 'card'} 
+                      onChange={handlePaymentMethodChange}
+                    />
+                    <label htmlFor="card">
+                      <span className="payment-icon">💳</span>
+                      Credit/Debit Card
+                    </label>
+                  </div>
+                  <div className="payment-method">
+                    <input 
+                      type="radio" 
+                      id="paypal" 
+                      name="paymentMethod" 
+                      value="paypal"
+                      checked={paymentMethod === 'paypal'} 
+                      onChange={handlePaymentMethodChange}
+                    />
+                    <label htmlFor="paypal">
+                      <span className="payment-icon">🅿️</span>
+                      PayPal
+                    </label>
+                  </div>
+                  <div className="payment-method">
+                    <input 
+                      type="radio" 
+                      id="applepay" 
+                      name="paymentMethod" 
+                      value="applepay"
+                      checked={paymentMethod === 'applepay'} 
+                      onChange={handlePaymentMethodChange}
+                    />
+                    <label htmlFor="applepay">
+                      <span className="payment-icon">🍎</span>
+                      Apple Pay
+                    </label>
+                  </div>
+                  <div className="payment-method">
+                    <input 
+                      type="radio" 
+                      id="googlepay" 
+                      name="paymentMethod" 
+                      value="googlepay"
+                      checked={paymentMethod === 'googlepay'} 
+                      onChange={handlePaymentMethodChange}
+                    />
+                    <label htmlFor="googlepay">
+                      <span className="payment-icon">🔍</span>
+                      Google Pay
+                    </label>
+                  </div>
+                </div>
+              </div>
+              
+              {paymentMethod === 'card' && (
+                <div className="card-payment-form">
+                  <div className="form-group">
+                    <label>Card Number</label>
+                    <input type="text" placeholder="1234 5678 9012 3456" />
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Expiry Date</label>
+                      <input type="text" placeholder="MM/YY" />
+                    </div>
+                    <div className="form-group">
+                      <label>CVC</label>
+                      <input type="text" placeholder="123" />
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label>Cardholder Name</label>
+                    <input type="text" placeholder="John Doe" />
+                  </div>
+                </div>
+              )}
+              
+              {paymentMethod === 'paypal' && (
+                <div className="external-payment-info">
+                  <p>You will be redirected to PayPal to complete your purchase.</p>
+                </div>
+              )}
+              
+              {paymentMethod === 'applepay' && (
+                <div className="external-payment-info">
+                  <p>You will be prompted to use Apple Pay to complete your purchase.</p>
+                </div>
+              )}
+              
+              {paymentMethod === 'googlepay' && (
+                <div className="external-payment-info">
+                  <p>You will be prompted to use Google Pay to complete your purchase.</p>
+                </div>
+              )}
+              
+              <div className="payment-actions">
+                <motion.button 
+                  className="cancel-btn"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowPaymentForm(false)}
+                  disabled={processingPayment}
+                >
+                  Back
+                </motion.button>
+                <motion.button 
+                  className="confirm-payment-btn"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handlePurchase}
+                  disabled={processingPayment}
+                >
+                  {processingPayment ? 'Processing...' : `Pay $${calculateTotal().toFixed(2)}`}
+                </motion.button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+const MyTickets = () => {
+  const { user } = useAuth();
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+
+  useEffect(() => {
+    const fetchTickets = async () => {
+      try {
+        const response = await axios.get(`${API}/user/tickets`);
+        setTickets(response.data);
+      } catch (error) {
+        toast.error('Failed to fetch tickets');
+        console.error('Error fetching tickets:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (user) {
+      fetchTickets();
+    }
+  }, [user]);
+
+  const handleTicketSelect = (ticket) => {
+    setSelectedTicket(ticket);
+  };
+
+  const handleBackToTickets = () => {
+    setSelectedTicket(null);
+  };
+
+  if (!user) {
+    return (
+      <div className="unauthorized-message">
+        Please login to view your tickets.
       </div>
     );
   }
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Book Ticket</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
-        </div>
-        
-        <div className="modal-content">
-          <div className="event-summary">
-            <h3>{event.name}</h3>
-            <p>📅 {new Date(event.date).toLocaleDateString()}</p>
-            <p>📍 {event.venue}</p>
-            <p className="price">Price: ${event.price}</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="booking-form">
-            <div className="form-group">
-              <label>Full Name</label>
-              <input
-                type="text"
-                required
-                value={bookingData.customer_name}
-                onChange={(e) => setBookingData({...bookingData, customer_name: e.target.value})}
-              />
-            </div>
-            
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                required
-                value={bookingData.customer_email}
-                onChange={(e) => setBookingData({...bookingData, customer_email: e.target.value})}
-              />
-            </div>
-            
-            <div className="form-group">
-              <label>Phone Number</label>
-              <input
-                type="tel"
-                required
-                value={bookingData.customer_phone}
-                onChange={(e) => setBookingData({...bookingData, customer_phone: e.target.value})}
-              />
-            </div>
-            
-            <div className="form-group">
-              <label>N8N Webhook URL (Optional)</label>
-              <input
-                type="url"
-                placeholder="https://your-n8n-instance.com/webhook/..."
-                value={bookingData.n8n_webhook_url}
-                onChange={(e) => setBookingData({...bookingData, n8n_webhook_url: e.target.value})}
-              />
-              <small>Enter your n8n webhook URL to receive ticket details</small>
-            </div>
-
-            <button type="submit" className="book-btn" disabled={loading}>
-              {loading ? 'Booking...' : 'Book Ticket'}
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const LoginPage = ({ setActiveView }) => {
-  const { login } = useAuth();
-  const [formData, setFormData] = useState({ email: '', password: '' });
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    const result = await login(formData.email, formData.password);
-    if (result.success) {
-      setActiveView('home');
-    } else {
-      alert(result.error);
-    }
-    setLoading(false);
-  };
-
-  return (
-    <div className="auth-page">
-      <div className="auth-container">
-        <div className="auth-card">
-          <h2>Welcome Back</h2>
-          <p>Sign in to your account</p>
-          
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-              />
-            </div>
-            
-            <div className="form-group">
-              <label>Password</label>
-              <input
-                type="password"
-                required
-                value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
-              />
-            </div>
-
-            <button type="submit" className="auth-btn" disabled={loading}>
-              {loading ? 'Signing In...' : 'Sign In'}
-            </button>
-          </form>
-
-          <p className="auth-switch">
-            Don't have an account? 
-            <button onClick={() => setActiveView('register')}>Sign up</button>
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const RegisterPage = ({ setActiveView }) => {
-  const { register } = useAuth();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    first_name: '',
-    last_name: ''
-  });
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    const result = await register(formData);
-    if (result.success) {
-      setActiveView('home');
-    } else {
-      alert(result.error);
-    }
-    setLoading(false);
-  };
-
-  return (
-    <div className="auth-page">
-      <div className="auth-container">
-        <div className="auth-card">
-          <h2>Create Account</h2>
-          <p>Join TicketVerse today</p>
-          
-          <form onSubmit={handleSubmit}>
-            <div className="form-row">
-              <div className="form-group">
-                <label>First Name</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.first_name}
-                  onChange={(e) => setFormData({...formData, first_name: e.target.value})}
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Last Name</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.last_name}
-                  onChange={(e) => setFormData({...formData, last_name: e.target.value})}
-                />
-              </div>
-            </div>
-            
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                required
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-              />
-            </div>
-            
-            <div className="form-group">
-              <label>Password</label>
-              <input
-                type="password"
-                required
-                value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
-              />
-            </div>
-
-            <button type="submit" className="auth-btn" disabled={loading}>
-              {loading ? 'Creating Account...' : 'Create Account'}
-            </button>
-          </form>
-
-          <p className="auth-switch">
-            Already have an account? 
-            <button onClick={() => setActiveView('login')}>Sign in</button>
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const TicketsPage = () => {
-  const [tickets, setTickets] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchTickets();
-  }, []);
-
-  const fetchTickets = async () => {
-    try {
-      const response = await axios.get(`${API}/tickets`);
-      setTickets(response.data);
-    } catch (error) {
-      console.error('Error fetching tickets:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   if (loading) {
-    return <div className="loading">Loading your tickets...</div>;
+    return <div className="loading">Loading tickets...</div>;
   }
 
   return (
-    <div className="tickets-page">
-      <div className="container">
-        <h1>My Tickets</h1>
-        
-        {tickets.length === 0 ? (
-          <div className="no-tickets">
-            <h3>No tickets found</h3>
-            <p>You haven't booked any tickets yet.</p>
+    <div className="tickets-container">
+      {selectedTicket ? (
+        <TicketDetails ticket={selectedTicket} onBack={handleBackToTickets} />
+      ) : (
+        <>
+          <h2>My Tickets</h2>
+          <div className="tickets-list">
+            {tickets.length > 0 ? (
+              tickets.map(ticket => (
+                <motion.div 
+                  key={ticket.id} 
+                  className="ticket-card"
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handleTicketSelect(ticket)}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <div className="ticket-header">
+                    <h3>{ticket.event.title}</h3>
+                    <span className={`ticket-status ${ticket.status}`}>{ticket.status}</span>
+                  </div>
+                  <div className="ticket-body">
+                    <div className="ticket-detail">
+                      <span>Date:</span>
+                      <span>{new Date(ticket.event.start_date).toLocaleDateString()}</span>
+                    </div>
+                    <div className="ticket-detail">
+                      <span>Location:</span>
+                      <span>{ticket.event.location}</span>
+                    </div>
+                    <div className="ticket-detail">
+                      <span>Quantity:</span>
+                      <span>{ticket.quantity}</span>
+                    </div>
+                  </div>
+                  <div className="ticket-footer">
+                    <span className="ticket-id">ID: {ticket.id.substring(0, 8)}...</span>
+                    <span className="view-ticket">View Details →</span>
+                  </div>
+                </motion.div>
+              ))
+            ) : (
+              <p className="no-tickets-message">You don't have any tickets yet.</p>
+            )}
           </div>
-        ) : (
-          <div className="tickets-grid">
-            {tickets.map(ticket => (
-              <TicketCard key={ticket.id} ticket={ticket} />
-            ))}
-          </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 };
 
-const TicketCard = ({ ticket }) => {
-  const [showQR, setShowQR] = useState(false);
-
+const TicketDetails = ({ ticket, onBack }) => {
   return (
-    <>
-      <div className="ticket-card">
-        <div className="ticket-header">
-          <h3>Ticket #{ticket.ticket_number}</h3>
-          <span className={`status ${ticket.status}`}>{ticket.status}</span>
+    <motion.div 
+      className="ticket-details-container"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      <button 
+        className="back-button" 
+        onClick={onBack}
+      >
+        ← Back to My Tickets
+      </button>
+      
+      <div className="ticket-details-content">
+        <div className="ticket-header-detail">
+          <h1>{ticket.event.title}</h1>
+          <span className={`ticket-status ${ticket.status}`}>{ticket.status}</span>
         </div>
         
-        <div className="ticket-details">
-          <p><strong>Customer:</strong> {ticket.customer_name}</p>
-          <p><strong>Email:</strong> {ticket.customer_email}</p>
-          <p><strong>Phone:</strong> {ticket.customer_phone}</p>
-          <p><strong>Price:</strong> ${ticket.price_paid}</p>
-          <p><strong>Booked:</strong> {new Date(ticket.booking_date).toLocaleDateString()}</p>
-        </div>
-
-        <button 
-          className="qr-btn"
-          onClick={() => setShowQR(true)}
-        >
-          Show QR Code
-        </button>
-      </div>
-
-      {showQR && (
-        <div className="modal-overlay" onClick={() => setShowQR(false)}>
-          <div className="modal qr-modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Your Ticket QR Code</h2>
-              <button className="close-btn" onClick={() => setShowQR(false)}>×</button>
+        <div className="ticket-details-card">
+          <div className="ticket-qr-section">
+            <div className="ticket-qr-code">
+              <img src={`data:image/png;base64,${ticket.qr_code}`} alt="Ticket QR Code" />
             </div>
-            <div className="qr-content">
-              <img 
-                src={`data:image/png;base64,${ticket.qr_code}`} 
-                alt="Ticket QR Code"
-                className="qr-code"
-              />
-              <p>Show this QR code at the event entrance</p>
-              <p><strong>Ticket:</strong> {ticket.ticket_number}</p>
+            <div className="ticket-id-detail">
+              <span>Ticket ID</span>
+              <span>{ticket.id}</span>
+            </div>
+          </div>
+          
+          <div className="ticket-info-section">
+            <div className="ticket-info-row">
+              <div className="info-label">Event</div>
+              <div className="info-value">{ticket.event.title}</div>
+            </div>
+            <div className="ticket-info-row">
+              <div className="info-label">Date</div>
+              <div className="info-value">
+                {new Date(ticket.event.start_date).toLocaleDateString()} at {new Date(ticket.event.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+            <div className="ticket-info-row">
+              <div className="info-label">Location</div>
+              <div className="info-value">{ticket.event.location}</div>
+            </div>
+            <div className="ticket-info-row">
+              <div className="info-label">Ticket Type</div>
+              <div className="info-value">{ticket.ticket_type}</div>
+            </div>
+            <div className="ticket-info-row">
+              <div className="info-label">Quantity</div>
+              <div className="info-value">{ticket.quantity}</div>
+            </div>
+            <div className="ticket-info-row">
+              <div className="info-label">Purchase Date</div>
+              <div className="info-value">{new Date(ticket.created_at).toLocaleString()}</div>
             </div>
           </div>
         </div>
-      )}
-    </>
+        
+        <div className="ticket-actions">
+          <motion.button 
+            className="ticket-action-btn download-btn"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            Download PDF
+          </motion.button>
+          <motion.button 
+            className="ticket-action-btn email-btn"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            Email Ticket
+          </motion.button>
+        </div>
+      </div>
+    </motion.div>
   );
 };
 
-const AdminPanel = () => {
+const AdminDashboard = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('events');
-
+  
+  if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+    return (
+      <div className="unauthorized-message">
+        You don't have permission to access this page.
+      </div>
+    );
+  }
+  
   return (
-    <div className="admin-panel">
-      <div className="container">
-        <h1>Admin Panel</h1>
-        
-        <div className="admin-tabs">
-          <button 
-            className={`tab-btn ${activeTab === 'events' ? 'active' : ''}`}
-            onClick={() => setActiveTab('events')}
-          >
-            Manage Events
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => setActiveTab('analytics')}
-          >
-            Analytics
-          </button>
-          {user.role === 'super_admin' && (
-            <button 
-              className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`}
-              onClick={() => setActiveTab('users')}
-            >
-              Manage Users
-            </button>
-          )}
-        </div>
-
-        <div className="admin-content">
-          {activeTab === 'events' && <EventManagement />}
-          {activeTab === 'analytics' && <Analytics />}
-          {activeTab === 'users' && user.role === 'super_admin' && <UserManagement />}
-        </div>
+    <div className="admin-dashboard">
+      <h2>Admin Dashboard</h2>
+      
+      <div className="admin-tabs">
+        <button 
+          className={`tab-btn ${activeTab === 'events' ? 'active' : ''}`}
+          onClick={() => setActiveTab('events')}
+        >
+          Events
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'tickets' ? 'active' : ''}`}
+          onClick={() => setActiveTab('tickets')}
+        >
+          Tickets
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`}
+          onClick={() => setActiveTab('users')}
+        >
+          Users
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'coupons' ? 'active' : ''}`}
+          onClick={() => setActiveTab('coupons')}
+        >
+          Coupons
+        </button>
+      </div>
+      
+      <div className="admin-content">
+        {activeTab === 'events' && <AdminEvents />}
+        {activeTab === 'tickets' && <AdminTickets />}
+        {activeTab === 'users' && <AdminUsers />}
+        {activeTab === 'coupons' && <AdminCoupons />}
       </div>
     </div>
   );
 };
 
-const EventManagement = () => {
+const AdminEvents = () => {
   const [events, setEvents] = useState([]);
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
 
   useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const response = await axios.get(`${API}/admin/events`);
+        setEvents(response.data);
+      } catch (error) {
+        toast.error('Failed to fetch events');
+        console.error('Error fetching events:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
     fetchEvents();
   }, []);
 
-  const fetchEvents = async () => {
-    try {
-      const response = await axios.get(`${API}/events`);
-      setEvents(response.data);
-    } catch (error) {
-      console.error('Error fetching events:', error);
-    }
+  const handleAddEvent = () => {
+    setEditingEvent(null);
+    setShowForm(true);
   };
 
-  const deleteEvent = async (eventId) => {
+  const handleEditEvent = (event) => {
+    setEditingEvent(event);
+    setShowForm(true);
+  };
+
+  const handleDeleteEvent = async (eventId) => {
     if (window.confirm('Are you sure you want to delete this event?')) {
       try {
-        await axios.delete(`${API}/events/${eventId}`);
-        fetchEvents();
+        await axios.delete(`${API}/admin/events/${eventId}`);
+        setEvents(events.filter(event => event.id !== eventId));
+        toast.success('Event deleted successfully');
       } catch (error) {
-        alert('Error deleting event');
+        toast.error('Failed to delete event');
+        console.error('Error deleting event:', error);
       }
     }
   };
 
+  const handleFormClose = (refreshData = false) => {
+    setShowForm(false);
+    setEditingEvent(null);
+    
+    if (refreshData) {
+      setLoading(true);
+      const fetchEvents = async () => {
+        try {
+          const response = await axios.get(`${API}/admin/events`);
+          setEvents(response.data);
+        } catch (error) {
+          toast.error('Failed to refresh events');
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      fetchEvents();
+    }
+  };
+
+  if (loading) {
+    return <div className="loading">Loading events...</div>;
+  }
+
   return (
-    <div className="event-management">
-      <div className="section-header">
-        <h2>Event Management</h2>
-        <button 
-          className="create-btn"
-          onClick={() => setShowCreateForm(true)}
+    <div className="admin-events">
+      <div className="admin-header">
+        <h3>Events Management</h3>
+        <motion.button 
+          className="admin-add-btn"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleAddEvent}
         >
-          Create Event
-        </button>
+          Add Event
+        </motion.button>
       </div>
-
-      <div className="events-table">
-        {events.map(event => (
-          <div key={event.id} className="event-row">
-            <div className="event-info">
-              <h3>{event.name}</h3>
-              <p>{new Date(event.date).toLocaleDateString()} - {event.venue}</p>
-              <p>Available: {event.available_tickets}/{event.total_tickets}</p>
-            </div>
-            <div className="event-actions">
-              <button className="edit-btn">Edit</button>
-              <button 
-                className="delete-btn"
-                onClick={() => deleteEvent(event.id)}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {showCreateForm && (
-        <CreateEventModal 
-          onClose={() => setShowCreateForm(false)}
-          onSuccess={() => {
-            setShowCreateForm(false);
-            fetchEvents();
-          }}
+      
+      {showForm && (
+        <EventForm 
+          event={editingEvent} 
+          onClose={handleFormClose} 
         />
       )}
+      
+      <div className="admin-table-container">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Date</th>
+              <th>Location</th>
+              <th>Regular Price</th>
+              <th>IEEE Price</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {events.map(event => (
+              <tr key={event.id}>
+                <td>{event.title}</td>
+                <td>
+                  {new Date(event.start_date).toLocaleDateString()} - {new Date(event.end_date).toLocaleDateString()}
+                </td>
+                <td>{event.location}</td>
+                <td>${event.price_regular}</td>
+                <td>${event.price_ieee_member || '-'}</td>
+                <td>
+                  <span className={`status ${event.status}`}>{event.status}</span>
+                </td>
+                <td className="actions">
+                  <button 
+                    className="edit-btn"
+                    onClick={() => handleEditEvent(event)}
+                  >
+                    Edit
+                  </button>
+                  <button 
+                    className="delete-btn"
+                    onClick={() => handleDeleteEvent(event.id)}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
 
-const CreateEventModal = ({ onClose, onSuccess }) => {
-  const [eventData, setEventData] = useState({
-    name: '',
-    description: '',
-    date: '',
-    venue: '',
-    address: '',
-    price: '',
-    total_tickets: '',
-    category: '',
-    image_url: ''
+const EventForm = ({ event, onClose }) => {
+  const [formData, setFormData] = useState({
+    title: event?.title || '',
+    description: event?.description || '',
+    location: event?.location || '',
+    start_date: event?.start_date ? new Date(event.start_date).toISOString().slice(0, 16) : '',
+    end_date: event?.end_date ? new Date(event.end_date).toISOString().slice(0, 16) : '',
+    price_regular: event?.price_regular || '',
+    price_ieee_member: event?.price_ieee_member || '',
+    status: event?.status || 'upcoming',
+    image_url: event?.image_url || ''
   });
-  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-
+    setIsSubmitting(true);
+    
     try {
-      await axios.post(`${API}/events`, {
-        ...eventData,
-        price: parseFloat(eventData.price),
-        total_tickets: parseInt(eventData.total_tickets),
-        date: new Date(eventData.date).toISOString()
-      });
-      onSuccess();
+      if (event) {
+        // Update existing event
+        await axios.put(`${API}/admin/events/${event.id}`, formData);
+        toast.success('Event updated successfully');
+      } else {
+        // Create new event
+        await axios.post(`${API}/admin/events`, formData);
+        toast.success('Event created successfully');
+      }
+      
+      onClose(true); // Close form and refresh data
     } catch (error) {
-      alert('Error creating event');
+      toast.error(error.response?.data?.detail || 'An error occurred');
+      console.error('Error submitting event form:', error);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
+    <motion.div 
+      className="modal-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      <motion.div 
+        className="modal-content"
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
         <div className="modal-header">
-          <h2>Create New Event</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <h2>{event ? 'Edit Event' : 'Add New Event'}</h2>
+          <button 
+            className="close-btn"
+            onClick={() => onClose()}
+          >
+            &times;
+          </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="create-event-form">
+        <form onSubmit={handleSubmit} className="event-form">
           <div className="form-group">
-            <label>Event Name</label>
+            <label>Title</label>
             <input
               type="text"
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
               required
-              value={eventData.name}
-              onChange={(e) => setEventData({...eventData, name: e.target.value})}
             />
           </div>
           
           <div className="form-group">
             <label>Description</label>
             <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
               required
-              value={eventData.description}
-              onChange={(e) => setEventData({...eventData, description: e.target.value})}
+              rows="4"
+            ></textarea>
+          </div>
+          
+          <div className="form-group">
+            <label>Location</label>
+            <input
+              type="text"
+              name="location"
+              value={formData.location}
+              onChange={handleChange}
+              required
             />
           </div>
           
           <div className="form-row">
             <div className="form-group">
-              <label>Date & Time</label>
+              <label>Start Date & Time</label>
               <input
                 type="datetime-local"
+                name="start_date"
+                value={formData.start_date}
+                onChange={handleChange}
                 required
-                value={eventData.date}
-                onChange={(e) => setEventData({...eventData, date: e.target.value})}
               />
             </div>
-            
             <div className="form-group">
-              <label>Price ($)</label>
+              <label>End Date & Time</label>
               <input
-                type="number"
-                step="0.01"
+                type="datetime-local"
+                name="end_date"
+                value={formData.end_date}
+                onChange={handleChange}
                 required
-                value={eventData.price}
-                onChange={(e) => setEventData({...eventData, price: e.target.value})}
               />
             </div>
-          </div>
-          
-          <div className="form-group">
-            <label>Venue</label>
-            <input
-              type="text"
-              required
-              value={eventData.venue}
-              onChange={(e) => setEventData({...eventData, venue: e.target.value})}
-            />
-          </div>
-          
-          <div className="form-group">
-            <label>Address</label>
-            <input
-              type="text"
-              required
-              value={eventData.address}
-              onChange={(e) => setEventData({...eventData, address: e.target.value})}
-            />
           </div>
           
           <div className="form-row">
             <div className="form-group">
-              <label>Total Tickets</label>
+              <label>Regular Price ($)</label>
               <input
                 type="number"
+                name="price_regular"
+                value={formData.price_regular}
+                onChange={handleChange}
                 required
-                value={eventData.total_tickets}
-                onChange={(e) => setEventData({...eventData, total_tickets: e.target.value})}
+                min="0"
+                step="0.01"
               />
             </div>
-            
             <div className="form-group">
-              <label>Category</label>
-              <select
-                required
-                value={eventData.category}
-                onChange={(e) => setEventData({...eventData, category: e.target.value})}
-              >
-                <option value="">Select Category</option>
-                <option value="concert">Concert</option>
-                <option value="festival">Festival</option>
-                <option value="theater">Theater</option>
-                <option value="sports">Sports</option>
-                <option value="conference">Conference</option>
-                <option value="workshop">Workshop</option>
-              </select>
+              <label>IEEE Member Price ($)</label>
+              <input
+                type="number"
+                name="price_ieee_member"
+                value={formData.price_ieee_member}
+                onChange={handleChange}
+                min="0"
+                step="0.01"
+                placeholder="Optional"
+              />
             </div>
           </div>
           
           <div className="form-group">
-            <label>Image URL (Optional)</label>
+            <label>Status</label>
+            <select
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              required
+            >
+              <option value="upcoming">Upcoming</option>
+              <option value="ongoing">Ongoing</option>
+              <option value="completed">Completed</option>
+              <option value="canceled">Canceled</option>
+            </select>
+          </div>
+          
+          <div className="form-group">
+            <label>Image URL</label>
             <input
-              type="url"
-              value={eventData.image_url}
-              onChange={(e) => setEventData({...eventData, image_url: e.target.value})}
+              type="text"
+              name="image_url"
+              value={formData.image_url}
+              onChange={handleChange}
+              placeholder="Optional"
             />
           </div>
-
-          <button type="submit" className="create-btn" disabled={loading}>
-            {loading ? 'Creating...' : 'Create Event'}
-          </button>
+          
+          <div className="form-actions">
+            <button 
+              type="button" 
+              className="cancel-btn"
+              onClick={() => onClose()}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              className="submit-btn"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Saving...' : (event ? 'Update Event' : 'Create Event')}
+            </button>
+          </div>
         </form>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
-const Analytics = () => {
-  const [analytics, setAnalytics] = useState(null);
+const AdminTickets = () => {
+  // Similar to AdminEvents but for ticket management
+  return <div>Ticket Management Component</div>;
+};
+
+const AdminUsers = () => {
+  // Similar to AdminEvents but for user management
+  return <div>User Management Component</div>;
+};
+
+const AdminCoupons = () => {
+  const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingCoupon, setEditingCoupon] = useState(null);
 
   useEffect(() => {
-    fetchAnalytics();
+    const fetchCoupons = async () => {
+      try {
+        const response = await axios.get(`${API}/admin/coupons`);
+        setCoupons(response.data);
+      } catch (error) {
+        toast.error('Failed to fetch coupons');
+        console.error('Error fetching coupons:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchCoupons();
   }, []);
 
-  const fetchAnalytics = async () => {
-    try {
-      const response = await axios.get(`${API}/analytics/dashboard`);
-      setAnalytics(response.data);
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
-    } finally {
-      setLoading(false);
+  const handleAddCoupon = () => {
+    setEditingCoupon(null);
+    setShowForm(true);
+  };
+
+  const handleEditCoupon = (coupon) => {
+    setEditingCoupon(coupon);
+    setShowForm(true);
+  };
+
+  const handleDeleteCoupon = async (couponId) => {
+    if (window.confirm('Are you sure you want to delete this coupon?')) {
+      try {
+        await axios.delete(`${API}/admin/coupons/${couponId}`);
+        setCoupons(coupons.filter(coupon => coupon.id !== couponId));
+        toast.success('Coupon deleted successfully');
+      } catch (error) {
+        toast.error('Failed to delete coupon');
+        console.error('Error deleting coupon:', error);
+      }
+    }
+  };
+
+  const handleFormClose = (refreshData = false) => {
+    setShowForm(false);
+    setEditingCoupon(null);
+    
+    if (refreshData) {
+      setLoading(true);
+      const fetchCoupons = async () => {
+        try {
+          const response = await axios.get(`${API}/admin/coupons`);
+          setCoupons(response.data);
+        } catch (error) {
+          toast.error('Failed to refresh coupons');
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      fetchCoupons();
     }
   };
 
   if (loading) {
-    return <div className="loading">Loading analytics...</div>;
+    return <div className="loading">Loading coupons...</div>;
   }
 
   return (
-    <div className="analytics">
-      <h2>Dashboard Analytics</h2>
-      
-      <div className="stats-grid">
-        <div className="stat-card">
-          <h3>Total Events</h3>
-          <div className="stat-value">{analytics.total_events}</div>
-        </div>
-        <div className="stat-card">
-          <h3>Total Tickets Sold</h3>
-          <div className="stat-value">{analytics.total_tickets}</div>
-        </div>
-        <div className="stat-card">
-          <h3>Total Revenue</h3>
-          <div className="stat-value">${analytics.total_revenue}</div>
-        </div>
-      </div>
-
-      <div className="recent-bookings">
-        <h3>Recent Bookings</h3>
-        <div className="bookings-list">
-          {analytics.recent_bookings.map(booking => (
-            <div key={booking.id} className="booking-item">
-              <div className="booking-info">
-                <strong>{booking.customer_name}</strong>
-                <span>{booking.ticket_number}</span>
-              </div>
-              <div className="booking-date">
-                {new Date(booking.booking_date).toLocaleDateString()}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const UserManagement = () => {
-  const [users, setUsers] = useState([]);
-  const [showCreateAdmin, setShowCreateAdmin] = useState(false);
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
-    try {
-      const response = await axios.get(`${API}/admin/users`);
-      setUsers(response.data);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
-  };
-
-  return (
-    <div className="user-management">
-      <div className="section-header">
-        <h2>User Management</h2>
-        <button 
-          className="create-btn"
-          onClick={() => setShowCreateAdmin(true)}
+    <div className="admin-coupons">
+      <div className="admin-header">
+        <h3>Coupon Management</h3>
+        <motion.button 
+          className="admin-add-btn"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleAddCoupon}
         >
-          Create Admin
-        </button>
+          Add Coupon
+        </motion.button>
       </div>
-
-      <div className="users-table">
-        {users.map(user => (
-          <div key={user.id} className="user-row">
-            <div className="user-info">
-              <h3>{user.first_name} {user.last_name}</h3>
-              <p>{user.email}</p>
-              <span className={`role ${user.role}`}>{user.role}</span>
-            </div>
-            <div className="user-status">
-              <span className={`status ${user.is_active ? 'active' : 'inactive'}`}>
-                {user.is_active ? 'Active' : 'Inactive'}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {showCreateAdmin && (
-        <CreateAdminModal 
-          onClose={() => setShowCreateAdmin(false)}
-          onSuccess={() => {
-            setShowCreateAdmin(false);
-            fetchUsers();
-          }}
+      
+      {showForm && (
+        <CouponForm 
+          coupon={editingCoupon} 
+          onClose={handleFormClose} 
         />
       )}
+      
+      <div className="admin-table-container">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Discount</th>
+              <th>Event</th>
+              <th>Valid From</th>
+              <th>Valid Until</th>
+              <th>Max Uses</th>
+              <th>Uses Left</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {coupons.map(coupon => (
+              <tr key={coupon.id}>
+                <td>{coupon.code}</td>
+                <td>{coupon.discount_percentage}%</td>
+                <td>{coupon.event_id ? coupon.event?.title || coupon.event_id : 'All Events'}</td>
+                <td>{new Date(coupon.valid_from).toLocaleDateString()}</td>
+                <td>{coupon.valid_until ? new Date(coupon.valid_until).toLocaleDateString() : 'No Expiry'}</td>
+                <td>{coupon.max_uses || 'Unlimited'}</td>
+                <td>{coupon.remaining_uses || 'Unlimited'}</td>
+                <td>
+                  <span className={`status ${coupon.active ? 'active' : 'inactive'}`}>
+                    {coupon.active ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td className="actions">
+                  <button 
+                    className="edit-btn"
+                    onClick={() => handleEditCoupon(coupon)}
+                  >
+                    Edit
+                  </button>
+                  <button 
+                    className="delete-btn"
+                    onClick={() => handleDeleteCoupon(coupon.id)}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
 
-const CreateAdminModal = ({ onClose, onSuccess }) => {
-  const [adminData, setAdminData] = useState({
-    email: '',
-    password: '',
-    first_name: '',
-    last_name: ''
+const CouponForm = ({ coupon, onClose }) => {
+  const [events, setEvents] = useState([]);
+  const [formData, setFormData] = useState({
+    code: coupon?.code || '',
+    discount_percentage: coupon?.discount_percentage || '',
+    event_id: coupon?.event_id || '',
+    valid_from: coupon?.valid_from ? new Date(coupon.valid_from).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+    valid_until: coupon?.valid_until ? new Date(coupon.valid_until).toISOString().slice(0, 10) : '',
+    max_uses: coupon?.max_uses || '',
+    active: coupon ? coupon.active : true
   });
-  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const response = await axios.get(`${API}/admin/events`);
+        setEvents(response.data);
+      } catch (error) {
+        console.error('Error fetching events:', error);
+      } finally {
+        setLoadingEvents(false);
+      }
+    };
+    
+    fetchEvents();
+  }, []);
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData({
+      ...formData,
+      [name]: type === 'checkbox' ? checked : value
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-
+    setIsSubmitting(true);
+    
     try {
-      await axios.post(`${API}/admin/create`, adminData);
-      onSuccess();
+      if (coupon) {
+        // Update existing coupon
+        await axios.put(`${API}/admin/coupons/${coupon.id}`, formData);
+        toast.success('Coupon updated successfully');
+      } else {
+        // Create new coupon
+        await axios.post(`${API}/admin/coupons`, formData);
+        toast.success('Coupon created successfully');
+      }
+      
+      onClose(true); // Close form and refresh data
     } catch (error) {
-      alert('Error creating admin');
+      toast.error(error.response?.data?.detail || 'An error occurred');
+      console.error('Error submitting coupon form:', error);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
+    <motion.div 
+      className="modal-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      <motion.div 
+        className="modal-content"
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
         <div className="modal-header">
-          <h2>Create New Admin</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <h2>{coupon ? 'Edit Coupon' : 'Add New Coupon'}</h2>
+          <button 
+            className="close-btn"
+            onClick={() => onClose()}
+          >
+            &times;
+          </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="create-admin-form">
+        <form onSubmit={handleSubmit} className="coupon-form">
+          <div className="form-group">
+            <label>Coupon Code</label>
+            <input
+              type="text"
+              name="code"
+              value={formData.code}
+              onChange={handleChange}
+              required
+              placeholder="e.g., SUMMER2025"
+            />
+          </div>
+          
+          <div className="form-group">
+            <label>Discount Percentage</label>
+            <input
+              type="number"
+              name="discount_percentage"
+              value={formData.discount_percentage}
+              onChange={handleChange}
+              required
+              min="0"
+              max="100"
+              placeholder="e.g., 25 for 25%"
+            />
+          </div>
+          
+          <div className="form-group">
+            <label>Apply to Event (Optional)</label>
+            <select
+              name="event_id"
+              value={formData.event_id}
+              onChange={handleChange}
+              disabled={loadingEvents}
+            >
+              <option value="">All Events</option>
+              {events.map(event => (
+                <option key={event.id} value={event.id}>
+                  {event.title}
+                </option>
+              ))}
+            </select>
+          </div>
+          
           <div className="form-row">
             <div className="form-group">
-              <label>First Name</label>
+              <label>Valid From</label>
               <input
-                type="text"
+                type="date"
+                name="valid_from"
+                value={formData.valid_from}
+                onChange={handleChange}
                 required
-                value={adminData.first_name}
-                onChange={(e) => setAdminData({...adminData, first_name: e.target.value})}
               />
             </div>
-            
             <div className="form-group">
-              <label>Last Name</label>
+              <label>Valid Until (Optional)</label>
               <input
-                type="text"
-                required
-                value={adminData.last_name}
-                onChange={(e) => setAdminData({...adminData, last_name: e.target.value})}
+                type="date"
+                name="valid_until"
+                value={formData.valid_until}
+                onChange={handleChange}
+                min={formData.valid_from}
               />
             </div>
           </div>
           
           <div className="form-group">
-            <label>Email</label>
+            <label>Maximum Uses (Optional)</label>
             <input
-              type="email"
-              required
-              value={adminData.email}
-              onChange={(e) => setAdminData({...adminData, email: e.target.value})}
+              type="number"
+              name="max_uses"
+              value={formData.max_uses}
+              onChange={handleChange}
+              min="0"
+              placeholder="Leave blank for unlimited"
             />
           </div>
           
-          <div className="form-group">
-            <label>Password</label>
+          <div className="form-group checkbox-group">
             <input
-              type="password"
-              required
-              value={adminData.password}
-              onChange={(e) => setAdminData({...adminData, password: e.target.value})}
+              type="checkbox"
+              name="active"
+              id="coupon_active"
+              checked={formData.active}
+              onChange={handleChange}
             />
+            <label htmlFor="coupon_active">Active</label>
           </div>
-
-          <button type="submit" className="create-btn" disabled={loading}>
-            {loading ? 'Creating...' : 'Create Admin'}
-          </button>
+          
+          <div className="form-actions">
+            <button 
+              type="button" 
+              className="cancel-btn"
+              onClick={() => onClose()}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              className="submit-btn"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Saving...' : (coupon ? 'Update Coupon' : 'Create Coupon')}
+            </button>
+          </div>
         </form>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+const HomePage = () => {
+  return (
+    <motion.div 
+      className="home-container"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="hero-section">
+        <motion.h1 
+          initial={{ y: -50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+        >
+          Welcome to TicketVerse
+        </motion.h1>
+        <motion.p 
+          initial={{ y: 50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+        >
+          Your one-stop platform for event tickets
+        </motion.p>
+        <motion.button 
+          className="cta-button"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6, duration: 0.5 }}
+        >
+          Browse Events
+        </motion.button>
+      </div>
+      
+      <div className="features-section">
+        <h2>Why Choose Us</h2>
+        <div className="features-grid">
+          <motion.div 
+                        // Continuing from the homepage features-section
+            className="feature-card"
+            whileHover={{ y: -10 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+          >
+            <div className="feature-icon">🔒</div>
+            <h3>Secure Payments</h3>
+            <p>Multiple payment options with top-notch security for all your transactions.</p>
+          </motion.div>
+          
+          <motion.div 
+            className="feature-card"
+            whileHover={{ y: -10 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+          >
+            <div className="feature-icon">💼</div>
+            <h3>Special IEEE Pricing</h3>
+            <p>Exclusive discounts for IEEE members with verified membership.</p>
+          </motion.div>
+          
+          <motion.div 
+            className="feature-card"
+            whileHover={{ y: -10 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+          >
+            <div className="feature-icon">🎟️</div>
+            <h3>Easy Ticket Management</h3>
+            <p>View, download, and share your tickets with just a few clicks.</p>
+          </motion.div>
+          
+          <motion.div 
+            className="feature-card"
+            whileHover={{ y: -10 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.5 }}
+          >
+            <div className="feature-icon">🏷️</div>
+            <h3>Coupon Discounts</h3>
+            <p>Apply coupon codes for additional savings on your tickets.</p>
+          </motion.div>
+        </div>
+      </div>
+      
+      <div className="upcoming-events-section">
+        <h2>Featured Events</h2>
+        <FeaturedEvents />
+      </div>
+      
+      <div className="testimonials-section">
+        <h2>What Our Users Say</h2>
+        <div className="testimonials-slider">
+          <Testimonials />
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+const FeaturedEvents = () => {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  
+  useEffect(() => {
+    const fetchFeaturedEvents = async () => {
+      try {
+        const response = await axios.get(`${API}/events/featured`);
+        setEvents(response.data.slice(0, 3)); // Get top 3 events
+      } catch (error) {
+        console.error('Error fetching featured events:', error);
+        // Fallback to regular events if featured endpoint fails
+        try {
+          const fallbackResponse = await axios.get(`${API}/events`);
+          setEvents(fallbackResponse.data.slice(0, 3));
+        } catch (fallbackError) {
+          console.error('Error fetching fallback events:', fallbackError);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchFeaturedEvents();
+    
+    // Auto-rotate featured events
+    const interval = setInterval(() => {
+      setCurrentSlide(prev => (prev + 1) % (events.length || 1));
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [events.length]);
+  
+  const nextSlide = () => {
+    setCurrentSlide(prev => (prev + 1) % events.length);
+  };
+  
+  const prevSlide = () => {
+    setCurrentSlide(prev => (prev === 0 ? events.length - 1 : prev - 1));
+  };
+  
+  if (loading) {
+    return <div className="loading-spinner"></div>;
+  }
+  
+  if (events.length === 0) {
+    return <p>No featured events available at the moment.</p>;
+  }
+  
+  return (
+    <div className="featured-events-carousel">
+      <button className="carousel-btn prev" onClick={prevSlide}>❮</button>
+      
+      <div className="carousel-container">
+        {events.map((event, index) => (
+          <motion.div 
+            key={event.id}
+            className={`carousel-slide ${index === currentSlide ? 'active' : ''}`}
+            initial={{ opacity: 0, x: 100 }}
+            animate={{ 
+              opacity: index === currentSlide ? 1 : 0,
+              x: index === currentSlide ? 0 : 100
+            }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="featured-event-card">
+              <div className="featured-event-image">
+                {event.image_url ? (
+                  <img src={event.image_url} alt={event.title} />
+                ) : (
+                  <div className="featured-placeholder-image">🎭</div>
+                )}
+              </div>
+              <div className="featured-event-content">
+                <h3>{event.title}</h3>
+                <p className="featured-event-date">
+                  {new Date(event.start_date).toLocaleDateString()}
+                </p>
+                <p className="featured-event-location">{event.location}</p>
+                <p className="featured-event-description">
+                  {event.description.substring(0, 150)}
+                  {event.description.length > 150 ? '...' : ''}
+                </p>
+                <div className="featured-event-price">
+                  <span className="price-tag">
+                    From ${event.price_regular}
+                  </span>
+                  {event.price_ieee_member && (
+                    <span className="ieee-price-tag">
+                      IEEE: ${event.price_ieee_member}
+                    </span>
+                  )}
+                </div>
+                <button className="view-event-btn">View Details</button>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+      
+      <button className="carousel-btn next" onClick={nextSlide}>❯</button>
+      
+      <div className="carousel-dots">
+        {events.map((_, index) => (
+          <span 
+            key={index} 
+            className={`dot ${index === currentSlide ? 'active' : ''}`}
+            onClick={() => setCurrentSlide(index)}
+          ></span>
+        ))}
       </div>
     </div>
   );
 };
 
-function App() {
+const Testimonials = () => {
+  const testimonials = [
+    {
+      id: 1,
+      name: "Sarah Johnson",
+      role: "IEEE Member",
+      content: "The IEEE member discount is amazing! I saved 30% on my conference tickets. The verification process was simple and straightforward.",
+      avatar: "https://randomuser.me/api/portraits/women/44.jpg"
+    },
+    {
+      id: 2,
+      name: "Michael Chen",
+      role: "Regular User",
+      content: "I love how easy it is to find and purchase tickets. The interface is intuitive and the payment process is secure.",
+      avatar: "https://randomuser.me/api/portraits/men/32.jpg"
+    },
+    {
+      id: 3,
+      name: "Emma Rodriguez",
+      role: "Event Organizer",
+      content: "As an organizer, TicketVerse has simplified our ticketing process and improved attendance tracking. Highly recommended!",
+      avatar: "https://randomuser.me/api/portraits/women/63.jpg"
+    }
+  ];
+  
+  const [current, setCurrent] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrent(prev => (prev + 1) % testimonials.length);
+    }, 6000);
+    
+    return () => clearInterval(interval);
+  }, [testimonials.length]);
+  
+  return (
+    <div className="testimonials-container">
+      {testimonials.map((testimonial, index) => (
+        <motion.div 
+          key={testimonial.id}
+          className={`testimonial-card ${index === current ? 'active' : ''}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: index === current ? 1 : 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="testimonial-content">
+            <div className="quote-mark">"</div>
+            <p>{testimonial.content}</p>
+          </div>
+          <div className="testimonial-author">
+            <div className="author-avatar">
+              <img src={testimonial.avatar} alt={testimonial.name} />
+            </div>
+            <div className="author-info">
+              <h4>{testimonial.name}</h4>
+              <p>{testimonial.role}</p>
+            </div>
+          </div>
+        </motion.div>
+      ))}
+      
+      <div className="testimonial-dots">
+        {testimonials.map((_, index) => (
+          <span 
+            key={index} 
+            className={`dot ${index === current ? 'active' : ''}`}
+            onClick={() => setCurrent(index)}
+          ></span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const App = () => {
+  const [activeView, setActiveView] = useState('home');
+  
   return (
     <AuthProvider>
-      <div className="App">
+      <div className="app-container">
         <Navbar />
+        
+        <main className="main-content">
+          {activeView === 'home' && <HomePage />}
+          {activeView === 'events' && <Events />}
+          {activeView === 'login' && <Login />}
+          {activeView === 'register' && <Register />}
+          {activeView === 'tickets' && <MyTickets />}
+          {activeView === 'admin' && <AdminDashboard />}
+        </main>
+        
+        <footer className="footer">
+          <div className="footer-content">
+            <div className="footer-section about">
+              <h3>About TicketVerse</h3>
+              <p>Your trusted platform for event ticketing with special pricing for IEEE members.</p>
+              <div className="social-links">
+                <a href="#" className="social-icon">📘</a>
+                <a href="#" className="social-icon">🐦</a>
+                <a href="#" className="social-icon">📸</a>
+                <a href="#" className="social-icon">📱</a>
+              </div>
+            </div>
+            
+            <div className="footer-section links">
+              <h3>Quick Links</h3>
+              <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#">Events</a></li>
+                <li><a href="#">About Us</a></li>
+                <li><a href="#">Contact</a></li>
+                <li><a href="#">Privacy Policy</a></li>
+                <li><a href="#">Terms of Service</a></li>
+              </ul>
+            </div>
+            
+            <div className="footer-section contact">
+              <h3>Contact Us</h3>
+              <p><span>Email:</span> support@ticketverse.com</p>
+              <p><span>Phone:</span> +1 (555) 123-4567</p>
+              <p><span>Address:</span> 123 Event Street, Cityville, ST 12345</p>
+            </div>
+          </div>
+          
+          <div className="footer-bottom">
+            <p>&copy; 2025 TicketVerse. All rights reserved.</p>
+          </div>
+        </footer>
+        
+        <ToastContainer
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
       </div>
     </AuthProvider>
   );
-}
+};
 
 export default App;
