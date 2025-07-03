@@ -55,6 +55,65 @@ body {
   50% { transform: scale(1.1); }
 }
 
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -468px 0;
+  }
+  100% {
+    background-position: 468px 0;
+  }
+}
+
 .nav-links {
   display: flex;
   gap: 1rem;
@@ -63,20 +122,37 @@ body {
 .nav-btn {
   background: none;
   border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
   color: #666;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   font-weight: 500;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.nav-btn:hover::before {
+  left: 100%;
 }
 
 .nav-btn:hover,
 .nav-btn.active {
-  background: #667eea;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
 }
 
 .nav-auth {
@@ -144,15 +220,31 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
+  animation: fadeInUp 0.8s ease-out;
 }
 
 .view-container {
   min-height: calc(100vh - 80px);
+  animation: slideInLeft 0.6s ease-out;
 }
 
 /* Home Page Styles */
 .home-page {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.home-page::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  animation: float 20s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .hero-section {
@@ -162,6 +254,7 @@ body {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  animation: fadeInUp 1s ease-out;
 }
 
 .hero-bg {
@@ -172,7 +265,12 @@ body {
   bottom: 0;
   background: url('https://images.unsplash.com/photo-1610901056511-31de499995f0') center/cover;
   filter: brightness(0.4);
-  z-index: 1;
+  animation: slowZoom 20s ease-in-out infinite alternate;
+}
+
+@keyframes slowZoom {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.1); }
 }
 
 .hero-bg::after {
@@ -365,17 +463,37 @@ body {
 
 .event-card {
   background: white;
-  border-radius: 15px;
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.event-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, transparent 0%, rgba(102, 126, 234, 0.05) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.event-card:hover::before {
+  opacity: 1;
 }
 
 .event-card:hover {
-  transform: translateY(-10px) scale(1.02);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  transform: translateY(-15px) scale(1.03);
+  box-shadow: 0 25px 50px rgba(102, 126, 234, 0.2);
+  border-color: rgba(102, 126, 234, 0.3);
 }
 
 .event-image {
@@ -388,11 +506,13 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  filter: brightness(0.9);
 }
 
 .event-card:hover .event-image img {
-  transform: scale(1.1);
+  transform: scale(1.15) rotate(2deg);
+  filter: brightness(1.1);
 }
 
 .placeholder-image {
@@ -419,6 +539,77 @@ body {
   border-radius: 20px;
   font-weight: 600;
   backdrop-filter: blur(10px);
+}
+
+/* Enhanced Event Pricing Styles */
+.event-price-container {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+}
+
+.ieee-pricing-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.75rem;
+  border-radius: 15px;
+  text-align: center;
+  backdrop-filter: blur(10px);
+  animation: bounceIn 0.8s ease-out;
+}
+
+.original-price-small {
+  font-size: 0.75rem;
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
+.ieee-price {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin: 0.25rem 0;
+}
+
+.ieee-member-tag {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.25rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.pricing-with-ieee {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 0.75rem;
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  text-align: center;
+  border: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.regular-price-card {
+  color: #667eea;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.ieee-available {
+  color: #28a745;
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+.ieee-promotion {
+  background: linear-gradient(135deg, rgba(40, 167, 69, 0.1) 0%, rgba(40, 167, 69, 0.05) 100%);
+  color: #28a745;
+  padding: 0.5rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: center;
+  border-left: 3px solid #28a745;
+  animation: fadeInUp 0.6s ease-out;
 }
 
 .event-details {
@@ -532,6 +723,134 @@ body {
   font-size: 1.2rem;
   font-weight: 600;
   color: #667eea;
+}
+
+/* Pricing Section Styles */
+.pricing-section {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(102, 126, 234, 0.05);
+  border-radius: 10px;
+  border-left: 4px solid #667eea;
+}
+
+.ieee-pricing {
+  animation: bounceIn 0.8s ease-out;
+}
+
+.original-price {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.strikethrough {
+  text-decoration: line-through;
+  color: #999;
+  font-size: 1rem;
+}
+
+.discounted-price {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.final-price {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #667eea;
+}
+
+.savings {
+  background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.regular-price {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #667eea;
+}
+
+.discount-applied {
+  color: #28a745;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+/* Payment Methods Styles */
+.payment-methods {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.payment-option {
+  position: relative;
+}
+
+.payment-option input[type="radio"] {
+  opacity: 0;
+  position: absolute;
+  cursor: pointer;
+}
+
+.payment-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.payment-label:hover {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.05);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+}
+
+.payment-option input[type="radio"]:checked + .payment-label {
+  border-color: #667eea;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.2);
+}
+
+.payment-icon {
+  font-size: 1.5rem;
+}
+
+.booking-summary {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin: 1rem 0;
+  border-left: 4px solid #667eea;
+}
+
+.total-amount {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.amount {
+  color: #667eea;
+  font-size: 1.5rem;
 }
 
 /* Form Styles */
@@ -684,6 +1003,329 @@ body {
 
 .auth-switch button:hover {
   text-decoration: underline;
+}
+
+/* IEEE Membership Styles */
+.ieee-membership {
+  margin: 1.5rem 0;
+}
+
+.checkbox-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.checkbox-container input[type="checkbox"] {
+  opacity: 0;
+  position: absolute;
+  cursor: pointer;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  padding: 1rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.checkbox-label:hover {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  border-color: rgba(102, 126, 234, 0.2);
+}
+
+.checkbox-custom {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #667eea;
+  border-radius: 4px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.checkbox-container input[type="checkbox"]:checked + .checkbox-label .checkbox-custom {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+}
+
+.checkbox-container input[type="checkbox"]:checked + .checkbox-label .checkbox-custom::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.ieee-badge {
+  background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: auto;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.ieee-fields {
+  animation: slideInLeft 0.5s ease-out;
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(102, 126, 234, 0.05);
+  border-radius: 12px;
+  border-left: 4px solid #667eea;
+}
+
+.ieee-fields .form-group {
+  margin-bottom: 0;
+}
+
+.ieee-fields small {
+  color: #666;
+  font-style: italic;
+}
+
+/* Profile Page Styles */
+.profile-page {
+  background: white;
+  min-height: 100vh;
+  padding: 2rem 0;
+}
+
+.profile-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.profile-header h1 {
+  color: #333;
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.profile-header p {
+  color: #666;
+  font-size: 1.1rem;
+}
+
+.profile-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.profile-card {
+  background: white;
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(102, 126, 234, 0.1);
+  animation: fadeInUp 0.8s ease-out;
+}
+
+.profile-info h2 {
+  color: #333;
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.info-item label {
+  font-weight: 600;
+  color: #666;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-item span {
+  color: #333;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.role-badge.customer {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.role-badge.admin {
+  background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+  color: white;
+}
+
+.role-badge.super_admin {
+  background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+  color: #333;
+}
+
+.member-status.member {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.member-status.non-member {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.ieee-verification {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  padding: 2rem;
+  border-radius: 15px;
+  border-left: 4px solid #667eea;
+  margin-top: 2rem;
+}
+
+.ieee-verification h3 {
+  color: #333;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.upload-section {
+  margin: 2rem 0;
+}
+
+.upload-area {
+  border: 2px dashed #667eea;
+  border-radius: 15px;
+  padding: 2rem;
+  text-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.upload-area:hover {
+  border-color: #5a6fd8;
+  background: rgba(102, 126, 234, 0.05);
+}
+
+.upload-label {
+  display: block;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.upload-label.uploading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.upload-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.upload-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #667eea;
+  margin-bottom: 0.5rem;
+}
+
+.upload-message {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.upload-message.success {
+  background: rgba(40, 167, 69, 0.1);
+  color: #28a745;
+  border: 1px solid rgba(40, 167, 69, 0.2);
+}
+
+.upload-message.error {
+  background: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+  border: 1px solid rgba(220, 53, 69, 0.2);
+}
+
+.member-benefits {
+  margin-top: 2rem;
+}
+
+.member-benefits h4 {
+  color: #333;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.member-benefits ul {
+  list-style: none;
+  padding: 0;
+}
+
+.member-benefits li {
+  padding: 0.5rem 0;
+  color: #666;
+  font-weight: 500;
+}
+
+.ieee-promotion {
+  background: linear-gradient(135deg, rgba(40, 167, 69, 0.05) 0%, rgba(40, 167, 69, 0.02) 100%);
+  padding: 2rem;
+  border-radius: 15px;
+  border-left: 4px solid #28a745;
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.ieee-promotion h3 {
+  color: #28a745;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.ieee-join-btn {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+}
+
+.ieee-join-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
 }
 
 /* Tickets Page */
@@ -1068,6 +1710,11 @@ body {
     justify-content: center;
   }
 
+  .nav-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+
   .hero-title {
     font-size: 2.5rem;
   }
@@ -1097,6 +1744,7 @@ body {
   .events-grid,
   .tickets-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
 
   .form-row {
@@ -1106,25 +1754,108 @@ body {
   .modal {
     width: 95%;
     margin: 1rem;
+    max-height: 95vh;
   }
 
-  .admin-tabs {
-    flex-wrap: wrap;
+  .payment-methods {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-label {
+    padding: 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  .ieee-fields {
+    padding: 0.75rem;
+  }
+
+  .pricing-section {
+    padding: 0.75rem;
+  }
+
+  .event-price-container {
+    position: static;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+
+  .ieee-pricing-card,
+  .pricing-with-ieee {
+    display: inline-block;
+  }
+
+  .booking-summary {
+    padding: 1rem;
+  }
+
+  .total-amount {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+
+  .feature-card {
+    padding: 1.5rem;
   }
 
   .stats-grid {
     grid-template-columns: 1fr;
   }
 
-  .event-row,
-  .user-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
+  .auth-card {
+    padding: 1.5rem;
+    margin: 1rem;
   }
 
-  .event-actions {
-    align-self: flex-end;
+  .checkbox-label {
+    padding: 0.75rem;
+    flex-direction: column;
+    text-align: center;
+    gap: 0.5rem;
+  }
+
+  .ieee-badge {
+    margin-left: 0;
+    margin-top: 0.5rem;
+  }
+}
+
+/* Tablet-specific styles */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .container {
+    padding: 1.5rem;
+  }
+
+  .events-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .payment-methods {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .modal {
+    width: 85%;
+  }
+
+  .feature-card {
+    padding: 2rem;
+  }
+}
+
+/* Large screen enhancements */
+@media (min-width: 1200px) {
+  .events-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .payment-methods {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .container {
+    max-width: 1400px;
   }
 }
 

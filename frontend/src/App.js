@@ -108,6 +108,14 @@ const Navbar = () => {
               My Tickets
             </button>
           )}
+          {user && (
+            <button 
+              className={`nav-btn ${activeView === 'profile' ? 'active' : ''}`}
+              onClick={() => setActiveView('profile')}
+            >
+              Profile
+            </button>
+          )}
           {user && (user.role === 'admin' || user.role === 'super_admin') && (
             <button 
               className={`nav-btn ${activeView === 'admin' ? 'active' : ''}`}
@@ -162,6 +170,8 @@ const ViewRouter = ({ activeView, setActiveView }) => {
         return <RegisterPage setActiveView={setActiveView} />;
       case 'tickets':
         return user ? <TicketsPage /> : <LoginPage setActiveView={setActiveView} />;
+      case 'profile':
+        return user ? <ProfilePage /> : <LoginPage setActiveView={setActiveView} />;
       case 'admin':
         return (user && (user.role === 'admin' || user.role === 'super_admin')) 
           ? <AdminPanel /> 
@@ -333,6 +343,10 @@ const EventsPage = ({ setActiveView }) => {
 
 const EventCard = ({ event }) => {
   const [showBooking, setShowBooking] = useState(false);
+  const { user } = useAuth();
+  
+  const isIEEEMember = user?.is_ieee_member || false;
+  const hasIEEEPricing = event.ieee_member_price && event.ieee_member_price < event.price;
 
   return (
     <>
@@ -345,7 +359,22 @@ const EventCard = ({ event }) => {
               <span className="event-icon">🎪</span>
             </div>
           )}
-          <div className="event-price">${event.price}</div>
+          <div className="event-price-container">
+            {isIEEEMember && hasIEEEPricing ? (
+              <div className="ieee-pricing-card">
+                <div className="original-price-small">${event.price}</div>
+                <div className="ieee-price">${event.ieee_member_price}</div>
+                <div className="ieee-member-tag">IEEE</div>
+              </div>
+            ) : hasIEEEPricing ? (
+              <div className="pricing-with-ieee">
+                <div className="regular-price-card">${event.price}</div>
+                <div className="ieee-available">IEEE: ${event.ieee_member_price}</div>
+              </div>
+            ) : (
+              <div className="event-price">${event.price}</div>
+            )}
+          </div>
         </div>
         <div className="event-details">
           <h3 className="event-name">{event.name}</h3>
@@ -361,6 +390,11 @@ const EventCard = ({ event }) => {
           <p className="event-tickets">
             🎫 {event.available_tickets} tickets available
           </p>
+          {hasIEEEPricing && !isIEEEMember && (
+            <p className="ieee-promotion">
+              🎓 IEEE members save ${(event.price - event.ieee_member_price).toFixed(2)}!
+            </p>
+          )}
         </div>
       </div>
       
@@ -377,10 +411,18 @@ const BookingModal = ({ event, onClose }) => {
     customer_name: user ? `${user.first_name} ${user.last_name}` : '',
     customer_email: user ? user.email : '',
     customer_phone: '',
+    payment_method: 'card',
     n8n_webhook_url: ''
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  // Calculate price based on IEEE membership
+  const isIEEEMember = user?.is_ieee_member || false;
+  const originalPrice = event.price;
+  const ieeePrice = event.ieee_member_price;
+  const finalPrice = isIEEEMember && ieeePrice ? ieeePrice : originalPrice;
+  const discount = isIEEEMember && ieeePrice ? originalPrice - ieeePrice : 0;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -412,6 +454,9 @@ const BookingModal = ({ event, onClose }) => {
             <div className="success-icon">✅</div>
             <h2>Booking Confirmed!</h2>
             <p>Your ticket has been booked successfully. You'll receive an email with your ticket details and QR code.</p>
+            {discount > 0 && (
+              <p className="discount-applied">IEEE Member Discount Applied: ${discount.toFixed(2)} saved!</p>
+            )}
           </div>
         </div>
       </div>
@@ -420,7 +465,7 @@ const BookingModal = ({ event, onClose }) => {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
+      <div className="modal booking-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Book Ticket</h2>
           <button className="close-btn" onClick={onClose}>×</button>
@@ -431,7 +476,23 @@ const BookingModal = ({ event, onClose }) => {
             <h3>{event.name}</h3>
             <p>📅 {new Date(event.date).toLocaleDateString()}</p>
             <p>📍 {event.venue}</p>
-            <p className="price">Price: ${event.price}</p>
+            
+            <div className="pricing-section">
+              {isIEEEMember && ieeePrice && ieeePrice < originalPrice ? (
+                <div className="ieee-pricing">
+                  <div className="original-price">
+                    <span className="strikethrough">${originalPrice.toFixed(2)}</span>
+                    <span className="ieee-badge">🎓 IEEE Member</span>
+                  </div>
+                  <div className="discounted-price">
+                    <span className="final-price">${finalPrice.toFixed(2)}</span>
+                    <span className="savings">Save ${discount.toFixed(2)}!</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="regular-price">Price: ${finalPrice.toFixed(2)}</p>
+              )}
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="booking-form">
@@ -464,6 +525,71 @@ const BookingModal = ({ event, onClose }) => {
                 onChange={(e) => setBookingData({...bookingData, customer_phone: e.target.value})}
               />
             </div>
+
+            <div className="form-group">
+              <label>Payment Method</label>
+              <div className="payment-methods">
+                <div className="payment-option">
+                  <input
+                    type="radio"
+                    id="card"
+                    name="payment_method"
+                    value="card"
+                    checked={bookingData.payment_method === 'card'}
+                    onChange={(e) => setBookingData({...bookingData, payment_method: e.target.value})}
+                  />
+                  <label htmlFor="card" className="payment-label">
+                    <span className="payment-icon">💳</span>
+                    Credit/Debit Card
+                  </label>
+                </div>
+
+                <div className="payment-option">
+                  <input
+                    type="radio"
+                    id="paypal"
+                    name="payment_method"
+                    value="paypal"
+                    checked={bookingData.payment_method === 'paypal'}
+                    onChange={(e) => setBookingData({...bookingData, payment_method: e.target.value})}
+                  />
+                  <label htmlFor="paypal" className="payment-label">
+                    <span className="payment-icon">💰</span>
+                    PayPal
+                  </label>
+                </div>
+
+                <div className="payment-option">
+                  <input
+                    type="radio"
+                    id="bank_transfer"
+                    name="payment_method"
+                    value="bank_transfer"
+                    checked={bookingData.payment_method === 'bank_transfer'}
+                    onChange={(e) => setBookingData({...bookingData, payment_method: e.target.value})}
+                  />
+                  <label htmlFor="bank_transfer" className="payment-label">
+                    <span className="payment-icon">🏦</span>
+                    Bank Transfer
+                  </label>
+                </div>
+
+                <div className="payment-option">
+                  <input
+                    type="radio"
+                    id="cash"
+                    name="payment_method"
+                    value="cash"
+                    checked={bookingData.payment_method === 'cash'}
+                    onChange={(e) => setBookingData({...bookingData, payment_method: e.target.value})}
+                  />
+                  <label htmlFor="cash" className="payment-label">
+                    <span className="payment-icon">💵</span>
+                    Cash Payment
+                  </label>
+                </div>
+              </div>
+            </div>
             
             <div className="form-group">
               <label>N8N Webhook URL (Optional)</label>
@@ -476,8 +602,15 @@ const BookingModal = ({ event, onClose }) => {
               <small>Enter your n8n webhook URL to receive ticket details</small>
             </div>
 
+            <div className="booking-summary">
+              <div className="total-amount">
+                <span>Total Amount: </span>
+                <span className="amount">${finalPrice.toFixed(2)}</span>
+              </div>
+            </div>
+
             <button type="submit" className="book-btn" disabled={loading}>
-              {loading ? 'Booking...' : 'Book Ticket'}
+              {loading ? 'Processing Payment...' : `Pay ${bookingData.payment_method === 'cash' ? 'at Venue' : 'Now'} - $${finalPrice.toFixed(2)}`}
             </button>
           </form>
         </div>
@@ -553,9 +686,12 @@ const RegisterPage = ({ setActiveView }) => {
     email: '',
     password: '',
     first_name: '',
-    last_name: ''
+    last_name: '',
+    is_ieee_member: false,
+    ieee_id: ''
   });
   const [loading, setLoading] = useState(false);
+  const [showIEEEFields, setShowIEEEFields] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -568,6 +704,11 @@ const RegisterPage = ({ setActiveView }) => {
       alert(result.error);
     }
     setLoading(false);
+  };
+
+  const handleIEEEToggle = (checked) => {
+    setFormData({...formData, is_ieee_member: checked, ieee_id: checked ? formData.ieee_id : ''});
+    setShowIEEEFields(checked);
   };
 
   return (
@@ -619,6 +760,37 @@ const RegisterPage = ({ setActiveView }) => {
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
               />
             </div>
+
+            <div className="form-group ieee-membership">
+              <div className="checkbox-container">
+                <input
+                  type="checkbox"
+                  id="ieee-member"
+                  checked={formData.is_ieee_member}
+                  onChange={(e) => handleIEEEToggle(e.target.checked)}
+                />
+                <label htmlFor="ieee-member" className="checkbox-label">
+                  <span className="checkbox-custom"></span>
+                  I am an IEEE member
+                  <span className="ieee-badge">🎓 Member Benefits!</span>
+                </label>
+              </div>
+            </div>
+
+            {showIEEEFields && (
+              <div className="ieee-fields">
+                <div className="form-group">
+                  <label>IEEE Member ID</label>
+                  <input
+                    type="text"
+                    placeholder="Enter your IEEE member ID"
+                    value={formData.ieee_id}
+                    onChange={(e) => setFormData({...formData, ieee_id: e.target.value})}
+                  />
+                  <small>You can verify your ID card after registration</small>
+                </div>
+              </div>
+            )}
 
             <button type="submit" className="auth-btn" disabled={loading}>
               {loading ? 'Creating Account...' : 'Create Account'}
@@ -727,6 +899,143 @@ const TicketCard = ({ ticket }) => {
         </div>
       )}
     </>
+  );
+};
+
+const ProfilePage = () => {
+  const { user } = useAuth();
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState('');
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+
+    setUploadingFile(true);
+    setUploadMessage('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await axios.post(`${API}/auth/upload-ieee-id`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      setUploadMessage('IEEE ID card uploaded successfully! ✅');
+      setTimeout(() => setUploadMessage(''), 3000);
+    } catch (error) {
+      setUploadMessage('Upload failed. Please try again. ❌');
+      setTimeout(() => setUploadMessage(''), 3000);
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  return (
+    <div className="profile-page">
+      <div className="container">
+        <div className="profile-header">
+          <h1>My Profile</h1>
+          <p>Manage your account settings and preferences</p>
+        </div>
+
+        <div className="profile-content">
+          <div className="profile-card">
+            <div className="profile-info">
+              <h2>Personal Information</h2>
+              <div className="info-grid">
+                <div className="info-item">
+                  <label>Name:</label>
+                  <span>{user.first_name} {user.last_name}</span>
+                </div>
+                <div className="info-item">
+                  <label>Email:</label>
+                  <span>{user.email}</span>
+                </div>
+                <div className="info-item">
+                  <label>Role:</label>
+                  <span className={`role-badge ${user.role}`}>{user.role}</span>
+                </div>
+                <div className="info-item">
+                  <label>IEEE Member:</label>
+                  <span className={`member-status ${user.is_ieee_member ? 'member' : 'non-member'}`}>
+                    {user.is_ieee_member ? '✅ Yes' : '❌ No'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {user.is_ieee_member && (
+              <div className="ieee-verification">
+                <h3>IEEE Membership Verification</h3>
+                <p>Upload your IEEE member ID card for verification to unlock member benefits.</p>
+                
+                <div className="upload-section">
+                  <div className="upload-area">
+                    <input
+                      type="file"
+                      id="ieee-id-upload"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      disabled={uploadingFile}
+                      style={{ display: 'none' }}
+                    />
+                    <label htmlFor="ieee-id-upload" className={`upload-label ${uploadingFile ? 'uploading' : ''}`}>
+                      <div className="upload-icon">📷</div>
+                      <div className="upload-text">
+                        {uploadingFile ? 'Uploading...' : 'Click to upload IEEE ID card'}
+                      </div>
+                      <small>Supported formats: JPG, PNG, GIF (Max 5MB)</small>
+                    </label>
+                  </div>
+                  
+                  {uploadMessage && (
+                    <div className={`upload-message ${uploadMessage.includes('✅') ? 'success' : 'error'}`}>
+                      {uploadMessage}
+                    </div>
+                  )}
+                </div>
+
+                <div className="member-benefits">
+                  <h4>IEEE Member Benefits</h4>
+                  <ul>
+                    <li>🎯 Exclusive discounted pricing on events</li>
+                    <li>⚡ Priority booking access</li>
+                    <li>🎓 Access to IEEE-only events</li>
+                    <li>📚 Special educational content</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {!user.is_ieee_member && (
+              <div className="ieee-promotion">
+                <h3>Join IEEE Today!</h3>
+                <p>Become an IEEE member to unlock exclusive benefits and discounted event pricing.</p>
+                <button className="ieee-join-btn" onClick={() => window.open('https://www.ieee.org/membership/', '_blank')}>
+                  Learn More About IEEE Membership
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

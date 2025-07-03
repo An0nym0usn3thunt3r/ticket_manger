@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -101,6 +101,9 @@ class User(BaseModel):
     role: str = "customer"  # customer, admin, super_admin
     created_at: datetime = Field(default_factory=datetime.utcnow)
     is_active: bool = True
+    is_ieee_member: bool = False
+    ieee_id: Optional[str] = None
+    ieee_id_card_url: Optional[str] = None
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -108,6 +111,8 @@ class UserCreate(BaseModel):
     first_name: str
     last_name: str
     role: str = "customer"
+    is_ieee_member: bool = False
+    ieee_id: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -121,6 +126,7 @@ class Event(BaseModel):
     venue: str
     address: str
     price: float
+    ieee_member_price: Optional[float] = None  # Discounted price for IEEE members
     total_tickets: int
     available_tickets: int
     image_url: Optional[str] = None
@@ -136,6 +142,7 @@ class EventCreate(BaseModel):
     venue: str
     address: str
     price: float
+    ieee_member_price: Optional[float] = None
     total_tickets: int
     image_url: Optional[str] = None
     category: str
@@ -152,12 +159,15 @@ class Ticket(BaseModel):
     booking_date: datetime = Field(default_factory=datetime.utcnow)
     status: str = "active"  # active, used, cancelled
     price_paid: float
+    payment_method: Optional[str] = None  # card, paypal, bank_transfer, cash
+    is_ieee_discount_applied: bool = False
 
 class TicketCreate(BaseModel):
     event_id: str
     customer_email: EmailStr
     customer_name: str
     customer_phone: str
+    payment_method: str = "card"  # card, paypal, bank_transfer, cash
     n8n_webhook_url: Optional[str] = None
 
 class AdminCreate(BaseModel):
@@ -184,14 +194,16 @@ async def register(user_data: UserCreate):
         password_hash=hashed_password,
         first_name=user_data.first_name,
         last_name=user_data.last_name,
-        role=user_data.role
+        role=user_data.role,
+        is_ieee_member=user_data.is_ieee_member,
+        ieee_id=user_data.ieee_id
     )
     
     await db.users.insert_one(user.dict())
     access_token = create_access_token(data={"sub": user.id})
     return {"access_token": access_token, "token_type": "bearer", "user": {
         "id": user.id, "email": user.email, "first_name": user.first_name, 
-        "last_name": user.last_name, "role": user.role
+        "last_name": user.last_name, "role": user.role, "is_ieee_member": user.is_ieee_member
     }}
 
 @api_router.post("/auth/login")
@@ -203,8 +215,37 @@ async def login(user_data: UserLogin):
     access_token = create_access_token(data={"sub": user["id"]})
     return {"access_token": access_token, "token_type": "bearer", "user": {
         "id": user["id"], "email": user["email"], "first_name": user["first_name"], 
-        "last_name": user["last_name"], "role": user["role"]
+        "last_name": user["last_name"], "role": user["role"], 
+        "is_ieee_member": user.get("is_ieee_member", False)
     }}
+
+# File Upload for IEEE ID Card
+@api_router.post("/auth/upload-ieee-id")
+async def upload_ieee_id(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    # Validate file type
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="Only image files are allowed")
+    
+    # Save file (in a real app, you'd save to cloud storage like AWS S3)
+    import os
+    upload_dir = "uploads/ieee_ids"
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+    filename = f"{current_user['sub']}_ieee_id.{file_extension}"
+    file_path = os.path.join(upload_dir, filename)
+    
+    with open(file_path, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+    
+    # Update user record with file URL
+    await db.users.update_one(
+        {"id": current_user["sub"]},
+        {"$set": {"ieee_id_card_url": f"/uploads/ieee_ids/{filename}"}}
+    )
+    
+    return {"message": "IEEE ID card uploaded successfully", "file_url": f"/uploads/ieee_ids/{filename}"}
 
 # Super Admin Routes
 @api_router.post("/admin/create")
@@ -289,7 +330,7 @@ async def delete_event(event_id: str, current_user: dict = Depends(get_current_u
 
 # Ticket Routes
 @api_router.post("/tickets/book")
-async def book_ticket(ticket_data: TicketCreate):
+async def book_ticket(ticket_data: TicketCreate, current_user: dict = Depends(get_current_user)):
     # Check if event exists and has available tickets
     event = await db.events.find_one({"id": ticket_data.event_id, "is_active": True})
     if not event:
@@ -298,6 +339,22 @@ async def book_ticket(ticket_data: TicketCreate):
     if event["available_tickets"] <= 0:
         raise HTTPException(status_code=400, detail="No tickets available")
     
+    # Get user details to check IEEE membership
+    user = await db.users.find_one({"id": current_user["sub"]})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Determine price based on IEEE membership
+    is_ieee_member = user.get("is_ieee_member", False)
+    ieee_member_price = event.get("ieee_member_price")
+    
+    if is_ieee_member and ieee_member_price is not None:
+        final_price = ieee_member_price
+        is_ieee_discount_applied = True
+    else:
+        final_price = event["price"]
+        is_ieee_discount_applied = False
+    
     # Generate QR code with ticket data
     qr_data = f"event:{ticket_data.event_id}|customer:{ticket_data.customer_email}|time:{datetime.utcnow().isoformat()}"
     qr_code_base64 = generate_qr_code(qr_data)
@@ -305,12 +362,14 @@ async def book_ticket(ticket_data: TicketCreate):
     # Create ticket
     ticket = Ticket(
         event_id=ticket_data.event_id,
-        customer_id=str(uuid.uuid4()),
+        customer_id=user["id"],
         customer_email=ticket_data.customer_email,
         customer_name=ticket_data.customer_name,
         customer_phone=ticket_data.customer_phone,
         qr_code=qr_code_base64,
-        price_paid=event["price"]
+        price_paid=final_price,
+        payment_method=ticket_data.payment_method,
+        is_ieee_discount_applied=is_ieee_discount_applied
     )
     
     # Update available tickets
