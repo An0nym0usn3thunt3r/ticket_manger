@@ -1,18 +1,24 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+// import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { PaymentElement, Elements, useStripe, useElements } from "@stripe/react-stripe-js";
-import { loadStripe } from "@stripe/stripe-js";
+// import { PaymentElement, Elements, useStripe, useElements } from "@stripe/react-stripe-js";
+// import { loadStripe } from "@stripe/stripe-js";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import TradingViewWidget, { Themes } from 'react-tradingview-widget';
+// import TradingViewWidget, { Themes } from 'react-tradingview-widget';
+// import { 
+//   Events3DGrid, 
+//   Hero3D, 
+//   Scene3DBackground, 
+//   Nav3DElements 
+// } from './3DComponents';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
 const API = `${BACKEND_URL}/api`;
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
+// const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
 
 // Dark mode context
 const ThemeContext = React.createContext();
@@ -963,15 +969,46 @@ const Events = ({ setActiveView }) => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [filter, setFilter] = useState('all'); // all, upcoming, ongoing, completed
   const [searchTerm, setSearchTerm] = useState('');
+  const [view3D, setView3D] = useState(false);
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
+        console.log('Fetching events from:', `${API}/events`);
         const response = await axios.get(`${API}/events`);
+        console.log('Events response:', response.data);
         setEvents(response.data);
       } catch (error) {
-        toast.error('Failed to fetch events');
         console.error('Error fetching events:', error);
+        // Use fallback mock data for demo
+        setEvents([
+          {
+            id: "event_1",
+            title: "Tech Conference 2025",
+            description: "Join us for the latest in technology trends",
+            location: "Convention Center, City",
+            start_date: "2025-08-15T09:00:00Z",
+            end_date: "2025-08-15T17:00:00Z",
+            price_regular: 150.0,
+            price_ieee_member: 120.0,
+            featured: true,
+            status: "upcoming",
+            image_url: "https://via.placeholder.com/400x200?text=Tech+Conference"
+          },
+          {
+            id: "event_2", 
+            title: "AI Workshop",
+            description: "Hands-on workshop on AI and Machine Learning",
+            location: "University Campus",
+            start_date: "2025-09-10T10:00:00Z",
+            end_date: "2025-09-10T16:00:00Z",
+            price_regular: 80.0,
+            price_ieee_member: 60.0,
+            featured: true,
+            status: "upcoming",
+            image_url: "https://via.placeholder.com/400x200?text=AI+Workshop"
+          }
+        ]);
       } finally {
         setLoading(false);
       }
@@ -987,7 +1024,7 @@ const Events = ({ setActiveView }) => {
   const handleBackToEvents = () => {
     setSelectedEvent(null);
   };
-  
+
   const filteredEvents = events
     .filter(event => {
       // Apply status filter
@@ -1020,9 +1057,15 @@ const Events = ({ setActiveView }) => {
       ) : (
         <>
           <div className="events-header">
-            <h2>Discover Events</h2>
+            <motion.h2
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              Discover Events
+            </motion.h2>
             <div className="events-actions">
-              <div className="search-bar">
+              <div className="search-bar glassmorphism">
                 <input
                   type="text"
                   placeholder="Search events..."
@@ -1051,28 +1094,79 @@ const Events = ({ setActiveView }) => {
                   Ongoing
                 </button>
               </div>
+              <div className="view-toggle">
+                <button 
+                  className={!view3D ? 'active' : ''} 
+                  onClick={() => setView3D(false)}
+                  title="Grid View"
+                >
+                  📋
+                </button>
+                <button 
+                  className={view3D ? 'active' : ''} 
+                  onClick={() => setView3D(true)}
+                  title="3D View"
+                >
+                  🌐
+                </button>
+              </div>
             </div>
           </div>
-          
-          {filteredEvents.length > 0 ? (
-            <div className="events-grid">
-              {filteredEvents.map(event => (
-                <EventCard 
-                  key={event.id} 
-                  event={event} 
-                  onSelect={handleEventSelect} 
-                />
+
+          {/* view3D && filteredEvents.length > 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8 }}
+            >
+              <Events3DGrid 
+                events={filteredEvents} 
+                onEventSelect={handleEventSelect}
+              />
+            </motion.div>
+          ) : */ filteredEvents.length > 0 ? (
+            <motion.div 
+              className="events-grid interactive-3d"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              {filteredEvents.map((event, index) => (
+                <motion.div
+                  key={event.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  className="card-3d"
+                >
+                  <EventCard 
+                    event={event} 
+                    onSelect={handleEventSelect} 
+                  />
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           ) : (
-            <div className="no-events">
-              <div className="no-events-icon">🔍</div>
+            <motion.div 
+              className="no-events glassmorphism"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="no-events-icon floating-element">🔍</div>
               <p>No events found matching your criteria.</p>
-              <button onClick={() => {
-                setFilter('all');
-                setSearchTerm('');
-              }}>Clear Filters</button>
-            </div>
+              <motion.button 
+                onClick={() => {
+                  setFilter('all');
+                  setSearchTerm('');
+                }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="neon-glow"
+              >
+                Clear Filters
+              </motion.button>
+            </motion.div>
           )}
         </>
       )}
@@ -1691,7 +1785,7 @@ const EventDetails = ({ event, onBack, setActiveView }) => {
   );
 };
 
-const MyTickets = () => {
+const MyTickets = ({ setActiveView }) => {
   const { user } = useAuth();
   const { darkMode } = useTheme();
   const [tickets, setTickets] = useState([]);
@@ -3725,20 +3819,13 @@ const TradingOverview = () => {
       <div className="overview-section chart-section">
         <h3>Bitcoin/USDT Chart</h3>
         <div className="trading-view-chart">
-          <TradingViewWidget
-            symbol="BINANCE:BTCUSDT"
-            theme={Themes.DARK}
-            autosize
-            interval="60"
-            timezone="Etc/UTC"
-            style="1"
-            locale="en"
-            toolbar_bg="#f1f3f6"
-            enable_publishing={false}
-            hide_side_toolbar={false}
-            allow_symbol_change={true}
-            studies={["RSI@tv-basicstudies", "MACD@tv-basicstudies"]}
-          />
+          <div className="chart-placeholder">
+            <div className="placeholder-content">
+              <h4>📈 Trading Chart</h4>
+              <p>Advanced trading chart will be available here</p>
+              <small>Bitcoin/USDT - Real-time data</small>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -5215,39 +5302,20 @@ const HomePage = ({ setActiveView }) => {
   const { user } = useAuth();
   const [featuredEvents, setFeaturedEvents] = useState([]);
   const [marketData, setMarketData] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Set to false initially
   const [currentSlide, setCurrentSlide] = useState(0);
   
+  // Temporary: Skip API calls and use mock data immediately
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch featured events
-        const eventsResponse = await axios.get(`${API}/events/featured`);
-        setFeaturedEvents(eventsResponse.data.slice(0, 3)); // Get top 3 events
-        
-        // Mock market data for demo
-        setMarketData([
-          { symbol: 'BTC/USDT', price: '67,524.32', change: '+2.34%', direction: 'up' },
-          { symbol: 'ETH/USDT', price: '3,245.67', change: '-1.45%', direction: 'down' },
-          { symbol: 'BNB/USDT', price: '532.18', change: '+0.87%', direction: 'up' },
-          { symbol: 'SOL/USDT', price: '143.56', change: '+5.21%', direction: 'up' }
-        ]);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-    
-    // Auto-rotate featured events
-    const interval = setInterval(() => {
-      setCurrentSlide(prev => (prev + 1) % Math.max(1, featuredEvents.length));
-    }, 5000);
-    
-    return () => clearInterval(interval);
-  }, [featuredEvents.length]);
+    console.log('HomePage: Setting up mock data...');
+    setFeaturedEvents([]);
+    setMarketData([
+      { symbol: 'BTC/USDT', price: '67,524.32', change: '+2.34%', direction: 'up' },
+      { symbol: 'ETH/USDT', price: '3,245.67', change: '-1.45%', direction: 'down' },
+      { symbol: 'BNB/USDT', price: '532.18', change: '+0.87%', direction: 'up' },
+      { symbol: 'SOL/USDT', price: '143.56', change: '+5.21%', direction: 'up' }
+    ]);
+  }, []);
   
   const navigateToEvents = () => {
     setActiveView('events');
@@ -5278,40 +5346,70 @@ const HomePage = ({ setActiveView }) => {
   return (
     <div className={`home-container ${darkMode ? 'dark' : ''}`}>
       <div className="hero-section">
-        <motion.div 
-          className="hero-content"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-        >
-          <h1>Welcome to TicketVerse & Trading</h1>
-          <p>Your one-stop platform for event tickets and algorithmic trading</p>
-          <div className="hero-buttons">
-            <motion.button 
-              className="cta-button tickets-btn"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={navigateToEvents}
-            >
-              <span className="btn-icon">🎭</span>
-              Browse Events
-            </motion.button>
-            <motion.button 
-              className="cta-button trading-btn"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={navigateToTrading}
-            >
-              <span className="btn-icon">📈</span>
-              Start Trading
-            </motion.button>
+        <div className="hero-3d-background">
+          <div className="floating-shapes">
+            <div className="shape shape-1"></div>
+            <div className="shape shape-2"></div>
+            <div className="shape shape-3"></div>
+            <div className="shape shape-4"></div>
           </div>
-          {!user && (
-            <div className="hero-signup">
-              <p>New here? <span className="signup-link" onClick={navigateToLogin}>Sign up</span> and get your first ticket discount!</p>
+          <div className="hero-gradient-overlay"></div>
+        </div>
+        <div className="hero-overlay-content">
+          <motion.div 
+            className="hero-content"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8, duration: 0.5 }}
+          >
+            <motion.h1
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 1, duration: 0.6 }}
+              className="hero-title-3d"
+            >
+              Welcome to TicketVerse & Trading
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.2, duration: 0.5 }}
+              className="hero-subtitle"
+            >
+              Experience the future of event ticketing and algorithmic trading
+            </motion.p>
+            <div className="hero-buttons">
+              <motion.button 
+                className="cta-button tickets-btn glassmorphism"
+                whileHover={{ scale: 1.05, rotateY: 5 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={navigateToEvents}
+              >
+                <span className="btn-icon">🎭</span>
+                Browse Events
+              </motion.button>
+              <motion.button 
+                className="cta-button trading-btn glassmorphism"
+                whileHover={{ scale: 1.05, rotateY: -5 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={navigateToTrading}
+              >
+                <span className="btn-icon">📈</span>
+                Start Trading
+              </motion.button>
             </div>
-          )}
-        </motion.div>
+            {!user && (
+              <motion.div 
+                className="hero-signup"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.2, duration: 0.5 }}
+              >
+                <p>New here? <span className="signup-link" onClick={navigateToLogin}>Sign up</span> and get your first ticket discount!</p>
+              </motion.div>
+            )}
+          </motion.div>
+        </div>
       </div>
       
       {featuredEvents.length > 0 && (
@@ -5611,6 +5709,7 @@ const App = () => {
     <ThemeProvider>
       <AuthProvider>
         <div className="app-container">
+          {/* <Nav3DElements /> */}
           <Navbar setActiveView={setActiveView} activeView={activeView} />
           
           <main className="main-content">
@@ -5619,7 +5718,7 @@ const App = () => {
               {activeView === 'events' && <Events setActiveView={setActiveView} />}
               {activeView === 'login' && <Login setActiveView={setActiveView} />}
               {activeView === 'register' && <Register setActiveView={setActiveView} />}
-              {activeView === 'tickets' && <MyTickets />}
+              {activeView === 'tickets' && <MyTickets setActiveView={setActiveView} />}
               {activeView === 'trading' && <TradingDashboard />}
               {activeView === 'admin' && <AdminDashboard />}
               {activeView === 'profile' && <Profile />}
