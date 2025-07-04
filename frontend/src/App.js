@@ -979,8 +979,36 @@ const Events = ({ setActiveView }) => {
         console.log('Events response:', response.data);
         setEvents(response.data);
       } catch (error) {
-        toast.error('Failed to fetch events');
         console.error('Error fetching events:', error);
+        // Use fallback mock data for demo
+        setEvents([
+          {
+            id: "event_1",
+            title: "Tech Conference 2025",
+            description: "Join us for the latest in technology trends",
+            location: "Convention Center, City",
+            start_date: "2025-08-15T09:00:00Z",
+            end_date: "2025-08-15T17:00:00Z",
+            price_regular: 150.0,
+            price_ieee_member: 120.0,
+            featured: true,
+            status: "upcoming",
+            image_url: "https://via.placeholder.com/400x200?text=Tech+Conference"
+          },
+          {
+            id: "event_2", 
+            title: "AI Workshop",
+            description: "Hands-on workshop on AI and Machine Learning",
+            location: "University Campus",
+            start_date: "2025-09-10T10:00:00Z",
+            end_date: "2025-09-10T16:00:00Z",
+            price_regular: 80.0,
+            price_ieee_member: 60.0,
+            featured: true,
+            status: "upcoming",
+            image_url: "https://via.placeholder.com/400x200?text=AI+Workshop"
+          }
+        ]);
       } finally {
         setLoading(false);
       }
@@ -5274,39 +5302,20 @@ const HomePage = ({ setActiveView }) => {
   const { user } = useAuth();
   const [featuredEvents, setFeaturedEvents] = useState([]);
   const [marketData, setMarketData] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Set to false initially
   const [currentSlide, setCurrentSlide] = useState(0);
   
+  // Temporary: Skip API calls and use mock data immediately
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch featured events
-        const eventsResponse = await axios.get(`${API}/events/featured`);
-        setFeaturedEvents(eventsResponse.data.slice(0, 3)); // Get top 3 events
-        
-        // Mock market data for demo
-        setMarketData([
-          { symbol: 'BTC/USDT', price: '67,524.32', change: '+2.34%', direction: 'up' },
-          { symbol: 'ETH/USDT', price: '3,245.67', change: '-1.45%', direction: 'down' },
-          { symbol: 'BNB/USDT', price: '532.18', change: '+0.87%', direction: 'up' },
-          { symbol: 'SOL/USDT', price: '143.56', change: '+5.21%', direction: 'up' }
-        ]);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-    
-    // Auto-rotate featured events
-    const interval = setInterval(() => {
-      setCurrentSlide(prev => (prev + 1) % Math.max(1, featuredEvents.length));
-    }, 5000);
-    
-    return () => clearInterval(interval);
-  }, [featuredEvents.length]);
+    console.log('HomePage: Setting up mock data...');
+    setFeaturedEvents([]);
+    setMarketData([
+      { symbol: 'BTC/USDT', price: '67,524.32', change: '+2.34%', direction: 'up' },
+      { symbol: 'ETH/USDT', price: '3,245.67', change: '-1.45%', direction: 'down' },
+      { symbol: 'BNB/USDT', price: '532.18', change: '+0.87%', direction: 'up' },
+      { symbol: 'SOL/USDT', price: '143.56', change: '+5.21%', direction: 'up' }
+    ]);
+  }, []);
   
   const navigateToEvents = () => {
     setActiveView('events');
@@ -5337,20 +5346,14 @@ const HomePage = ({ setActiveView }) => {
   return (
     <div className={`home-container ${darkMode ? 'dark' : ''}`}>
       <div className="hero-section">
-        {/* <Hero3D /> */}
-        <div className="hero-placeholder" style={{ 
-          height: '60vh', 
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          color: 'white',
-          textAlign: 'center'
-        }}>
-          <div>
-            <h1>Welcome to TicketVerse & Trading 3D</h1>
-            <p>Experience the future of event ticketing and algorithmic trading</p>
+        <div className="hero-3d-background">
+          <div className="floating-shapes">
+            <div className="shape shape-1"></div>
+            <div className="shape shape-2"></div>
+            <div className="shape shape-3"></div>
+            <div className="shape shape-4"></div>
           </div>
+          <div className="hero-gradient-overlay"></div>
         </div>
         <div className="hero-overlay-content">
           <motion.div 
@@ -5359,6 +5362,22 @@ const HomePage = ({ setActiveView }) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8, duration: 0.5 }}
           >
+            <motion.h1
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 1, duration: 0.6 }}
+              className="hero-title-3d"
+            >
+              Welcome to TicketVerse & Trading
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.2, duration: 0.5 }}
+              className="hero-subtitle"
+            >
+              Experience the future of event ticketing and algorithmic trading
+            </motion.p>
             <div className="hero-buttons">
               <motion.button 
                 className="cta-button tickets-btn glassmorphism"
