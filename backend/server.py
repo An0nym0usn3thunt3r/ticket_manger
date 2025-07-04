@@ -23,9 +23,9 @@ import random
 import string
 import pandas as pd
 import numpy as np
-from scipy import stats
-import talib as ta
-import matplotlib.pyplot as plt
+# import scipy as stats
+# import talib as ta
+# import matplotlib.pyplot as plt
 from io import BytesIO
 import requests
 import time
@@ -1032,8 +1032,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static files for frontend
-app.mount("/", StaticFiles(directory="frontend/build", html=True), name="static")
+# Mount static files for frontend (only if build directory exists)
+import os
+if os.path.exists("frontend/build"):
+    app.mount("/", StaticFiles(directory="frontend/build", html=True), name="static")
 
 # Root endpoint
 @app.get("/api")
