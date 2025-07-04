@@ -1,5 +1,7 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, File, UploadFile, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -19,6 +21,17 @@ import httpx
 import json
 import random
 import string
+import pandas as pd
+import numpy as np
+from scipy import stats
+import talib as ta
+import matplotlib.pyplot as plt
+from io import BytesIO
+import requests
+import time
+import hmac
+import hashlib
+from concurrent.futures import ThreadPoolExecutor
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -35,10 +48,13 @@ JWT_SECRET = os.environ.get("JWT_SECRET", "your-secret-key-change-this")
 JWT_ALGORITHM = "HS256"
 
 # Create the main app without a prefix
-app = FastAPI(title="Ticket Manager API")
+app = FastAPI(title="Ticket Manager & Trading API")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
+
+# Trading router
+trading_router = APIRouter(prefix="/trading")
 
 # Helper Functions
 def hash_password(password: str) -> str:
@@ -98,6 +114,173 @@ def generate_random_code(length: int = 8) -> str:
     chars = string.ascii_uppercase + string.digits
     return ''.join(random.choice(chars) for _ in range(length))
 
+# Trading API Functions
+def calculate_rsi(data, period=14):
+    """Calculate RSI indicator"""
+    returns = data.diff()
+    up = returns.clip(lower=0)
+    down = -returns.clip(upper=0)
+    ma_up = up.rolling(period).mean()
+    ma_down = down.rolling(period).mean()
+    rs = ma_up / ma_down
+    return 100 - (100 / (1 + rs))
+
+def calculate_macd(data, fast=12, slow=26, signal=9):
+    """Calculate MACD indicator"""
+    ema_fast = data.ewm(span=fast, adjust=False).mean()
+    ema_slow = data.ewm(span=slow, adjust=False).mean()
+    macd_line = ema_fast - ema_slow
+    signal_line = macd_line.ewm(span=signal, adjust=False).mean()
+    histogram = macd_line - signal_line
+    return macd_line, signal_line, histogram
+
+def calculate_bollinger_bands(data, period=20, std_dev=2):
+    """Calculate Bollinger Bands"""
+    ma = data.rolling(period).mean()
+    std = data.rolling(period).std()
+    upper_band = ma + std_dev * std
+    lower_band = ma - std_dev * std
+    return upper_band, ma, lower_band
+
+def get_candles(symbol, interval='1h', limit=100):
+    """Get candlestick data from Binance"""
+    url = f"https://api.binance.com/api/v3/klines"
+    params = {
+        'symbol': symbol,
+        'interval': interval,
+        'limit': limit
+    }
+    
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        candles = response.json()
+        
+        # Convert to pandas DataFrame
+        df = pd.DataFrame(candles, columns=[
+            'open_time', 'open', 'high', 'low', 'close', 'volume',
+            'close_time', 'quote_asset_volume', 'number_of_trades',
+            'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
+        ])
+        
+        # Convert types
+        df['open_time'] = pd.to_datetime(df['open_time'], unit='ms')
+        df['close_time'] = pd.to_datetime(df['close_time'], unit='ms')
+        numeric_cols = ['open', 'high', 'low', 'close', 'volume']
+        df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric)
+        
+        return df
+    except Exception as e:
+        logging.error(f"Error fetching candles: {e}")
+        return None
+
+def generate_trading_signals(symbol, interval='1h', limit=100):
+    """Generate trading signals based on multiple indicators"""
+    df = get_candles(symbol, interval, limit)
+    if df is None:
+        return None
+    
+    # Calculate indicators
+    df['rsi'] = calculate_rsi(df['close'])
+    df['macd'], df['signal'], df['histogram'] = calculate_macd(df['close'])
+    df['upper_band'], df['middle_band'], df['lower_band'] = calculate_bollinger_bands(df['close'])
+    
+    # Generate signals
+    signals = []
+    
+    # Latest data point
+    latest = df.iloc[-1]
+    
+    # RSI signals
+    if latest['rsi'] < 30:
+        signals.append({
+            'indicator': 'RSI',
+            'signal': 'BUY',
+            'strength': 'STRONG',
+            'value': latest['rsi']
+        })
+    elif latest['rsi'] > 70:
+        signals.append({
+            'indicator': 'RSI',
+            'signal': 'SELL',
+            'strength': 'STRONG',
+            'value': latest['rsi']
+        })
+    
+    # MACD signals
+    if latest['macd'] > latest['signal'] and df.iloc[-2]['macd'] <= df.iloc[-2]['signal']:
+        signals.append({
+            'indicator': 'MACD',
+            'signal': 'BUY',
+            'strength': 'MEDIUM',
+            'value': latest['macd']
+        })
+    elif latest['macd'] < latest['signal'] and df.iloc[-2]['macd'] >= df.iloc[-2]['signal']:
+        signals.append({
+            'indicator': 'MACD',
+            'signal': 'SELL',
+            'strength': 'MEDIUM',
+            'value': latest['macd']
+        })
+    
+    # Bollinger Bands signals
+    if latest['close'] < latest['lower_band']:
+        signals.append({
+            'indicator': 'BOLLINGER',
+            'signal': 'BUY',
+            'strength': 'MEDIUM',
+            'value': f"Close: {latest['close']}, Lower: {latest['lower_band']}"
+        })
+    elif latest['close'] > latest['upper_band']:
+        signals.append({
+            'indicator': 'BOLLINGER',
+            'signal': 'SELL',
+            'strength': 'MEDIUM',
+            'value': f"Close: {latest['close']}, Upper: {latest['upper_band']}"
+        })
+    
+    # Generate chart
+    chart_buffer = BytesIO()
+    plt.figure(figsize=(10, 12))
+    
+    # Price and Bollinger Bands
+    plt.subplot(3, 1, 1)
+    plt.plot(df['close_time'], df['close'], label='Close Price')
+    plt.plot(df['close_time'], df['upper_band'], 'r--', label='Upper BB')
+    plt.plot(df['close_time'], df['middle_band'], 'g--', label='Middle BB')
+    plt.plot(df['close_time'], df['lower_band'], 'r--', label='Lower BB')
+    plt.title(f"{symbol} Price with Bollinger Bands")
+    plt.legend()
+    
+    # RSI
+    plt.subplot(3, 1, 2)
+    plt.plot(df['close_time'], df['rsi'])
+    plt.axhline(y=70, color='r', linestyle='-')
+    plt.axhline(y=30, color='g', linestyle='-')
+    plt.title('RSI')
+    
+    # MACD
+    plt.subplot(3, 1, 3)
+    plt.plot(df['close_time'], df['macd'], label='MACD')
+    plt.plot(df['close_time'], df['signal'], label='Signal')
+    plt.bar(df['close_time'], df['histogram'], width=0.01, label='Histogram')
+    plt.title('MACD')
+    plt.legend()
+    
+    plt.tight_layout()
+    plt.savefig(chart_buffer, format='png')
+    plt.close()
+    chart_buffer.seek(0)
+    chart_base64 = base64.b64encode(chart_buffer.getvalue()).decode('utf-8')
+    
+    return {
+        'signals': signals,
+        'chart': chart_base64,
+        'timestamp': datetime.utcnow().isoformat(),
+        'symbol': symbol,
+        'interval': interval
+    }
+
 # Models
 class User(BaseModel):
     id: Optional[str] = None
@@ -110,6 +293,8 @@ class User(BaseModel):
     ieee_member: bool = False
     ieee_member_id: Optional[str] = None
     ieee_verified: bool = False
+    trading_api_key: Optional[str] = None
+    trading_api_secret: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -123,6 +308,7 @@ class UserResponse(BaseModel):
     ieee_member: bool
     ieee_member_id: Optional[str] = None
     ieee_verified: bool
+    has_trading_api: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -190,6 +376,45 @@ class IEEEVerificationRequest(BaseModel):
     member_id: str
     verification_file: str  # Base64 encoded file
 
+class TradingAPICredentialsRequest(BaseModel):
+    api_key: str
+    api_secret: str
+    exchange: str = "binance"
+
+class TradingSignalRequest(BaseModel):
+    symbol: str
+    interval: str = "1h"
+    limit: int = 100
+
+class AutoTradeBotSettings(BaseModel):
+    id: Optional[str] = None
+    user_id: str
+    symbol: str
+    base_asset: str
+    quote_asset: str
+    strategy: str  # rsi, macd, bollinger, combined
+    risk_level: str  # low, medium, high
+    trade_amount_percentage: float  # percentage of available balance
+    max_trades_per_day: int
+    take_profit_percentage: float
+    stop_loss_percentage: float
+    active: bool = False
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+class TradeHistoryItem(BaseModel):
+    id: Optional[str] = None
+    user_id: str
+    bot_id: str
+    symbol: str
+    action: str  # buy, sell
+    quantity: float
+    price: float
+    total: float
+    status: str  # pending, completed, failed
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
 # Auth Routes
 @api_router.post("/auth/register", response_model=dict)
 async def register_user(user_data: User):
@@ -247,6 +472,18 @@ async def login_user(login_data: LoginRequest):
     # Remove password from response
     user.pop("password")
     
+    # Check if user has trading API credentials
+    if user.get("trading_api_key") and user.get("trading_api_secret"):
+        user["has_trading_api"] = True
+    else:
+        user["has_trading_api"] = False
+    
+    # Remove actual API credentials from response
+    if "trading_api_key" in user:
+        user.pop("trading_api_key")
+    if "trading_api_secret" in user:
+        user.pop("trading_api_secret")
+    
     return {
         "access_token": access_token,
         "token_type": "bearer",
@@ -256,7 +493,23 @@ async def login_user(login_data: LoginRequest):
 # User Routes
 @api_router.get("/user/me", response_model=UserResponse)
 async def get_user_me(current_user: dict = Depends(get_current_user)):
-    return current_user
+    user_response = dict(current_user)
+    
+    # Check if user has trading API credentials
+    if user_response.get("trading_api_key") and user_response.get("trading_api_secret"):
+        user_response["has_trading_api"] = True
+    else:
+        user_response["has_trading_api"] = False
+    
+    # Remove actual API credentials from response
+    if "trading_api_key" in user_response:
+        user_response.pop("trading_api_key")
+    if "trading_api_secret" in user_response:
+        user_response.pop("trading_api_secret")
+    if "password" in user_response:
+        user_response.pop("password")
+    
+    return user_response
 
 @api_router.put("/user/update", response_model=UserResponse)
 async def update_user(user_data: dict, current_user: dict = Depends(get_current_user)):
@@ -280,9 +533,24 @@ async def update_user(user_data: dict, current_user: dict = Depends(get_current_
     
     # Get updated user
     updated_user = await db.users.find_one({"id": current_user["id"]})
-    updated_user.pop("password")
     
-    return updated_user
+    # Create response and remove sensitive data
+    user_response = dict(updated_user)
+    user_response.pop("password")
+    
+    # Check if user has trading API credentials
+    if user_response.get("trading_api_key") and user_response.get("trading_api_secret"):
+        user_response["has_trading_api"] = True
+    else:
+        user_response["has_trading_api"] = False
+    
+    # Remove actual API credentials from response
+    if "trading_api_key" in user_response:
+        user_response.pop("trading_api_key")
+    if "trading_api_secret" in user_response:
+        user_response.pop("trading_api_secret")
+    
+    return user_response
 
 @api_router.post("/user/ieee-verify", response_model=dict)
 async def verify_ieee_membership(data: IEEEVerificationRequest, current_user: dict = Depends(get_current_user)):
@@ -302,6 +570,18 @@ async def verify_ieee_membership(data: IEEEVerificationRequest, current_user: di
     # Get updated user
     updated_user = await db.users.find_one({"id": current_user["id"]})
     updated_user.pop("password")
+    
+    # Check if user has trading API credentials
+    if updated_user.get("trading_api_key") and updated_user.get("trading_api_secret"):
+        updated_user["has_trading_api"] = True
+    else:
+        updated_user["has_trading_api"] = False
+    
+    # Remove actual API credentials from response
+    if "trading_api_key" in updated_user:
+        updated_user.pop("trading_api_key")
+    if "trading_api_secret" in updated_user:
+        updated_user.pop("trading_api_secret")
     
     return {
         "message": "IEEE membership verified successfully",
@@ -639,8 +919,109 @@ async def admin_delete_coupon(coupon_id: str, current_user: dict = Depends(get_c
     
     return {"success": True, "message": "Coupon deleted successfully"}
 
-# Add API routes to the main app
+# Trading API Routes
+@api_router.post("/trading/api-credentials", response_model=dict)
+async def set_trading_api_credentials(data: TradingAPICredentialsRequest, current_user: dict = Depends(get_current_user)):
+    # Update user with API credentials
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$set": {
+            "trading_api_key": data.api_key,
+            "trading_api_secret": data.api_secret,
+            "trading_exchange": data.exchange,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+    
+    return {
+        "success": True,
+        "message": "Trading API credentials saved successfully"
+    }
+
+@api_router.post("/trading/signals", response_model=dict)
+async def get_trading_signals(data: TradingSignalRequest, current_user: dict = Depends(get_current_user)):
+    signals = generate_trading_signals(data.symbol, data.interval, data.limit)
+    
+    if signals is None:
+        raise HTTPException(status_code=400, detail="Failed to generate trading signals")
+    
+    return signals
+
+@api_router.post("/trading/bots", response_model=dict)
+async def create_trading_bot(data: AutoTradeBotSettings, current_user: dict = Depends(get_current_user)):
+    # Check if user has trading API credentials
+    user = await db.users.find_one({"id": current_user["id"]})
+    if not user.get("trading_api_key") or not user.get("trading_api_secret"):
+        raise HTTPException(status_code=400, detail="Trading API credentials required")
+    
+    # Prepare bot settings
+    now = datetime.utcnow()
+    bot_dict = data.dict()
+    bot_dict.update({
+        "id": str(uuid.uuid4()),
+        "user_id": current_user["id"],
+        "created_at": now,
+        "updated_at": now
+    })
+    
+    # Insert into database
+    await db.trading_bots.insert_one(bot_dict)
+    
+    return {
+        "success": True,
+        "bot_id": bot_dict["id"],
+        "message": "Trading bot created successfully"
+    }
+
+@api_router.get("/trading/bots", response_model=List[AutoTradeBotSettings])
+async def get_user_trading_bots(current_user: dict = Depends(get_current_user)):
+    # Get all bots for current user
+    cursor = db.trading_bots.find({"user_id": current_user["id"]})
+    bots = await cursor.to_list(length=100)
+    
+    return bots
+
+@api_router.put("/trading/bots/{bot_id}/toggle", response_model=dict)
+async def toggle_trading_bot(bot_id: str, current_user: dict = Depends(get_current_user)):
+    # Check if bot exists and belongs to current user
+    bot = await db.trading_bots.find_one({
+        "id": bot_id,
+        "user_id": current_user["id"]
+    })
+    
+    if not bot:
+        raise HTTPException(status_code=404, detail="Trading bot not found")
+    
+    # Toggle active status
+    new_status = not bot["active"]
+    
+    await db.trading_bots.update_one(
+        {"id": bot_id},
+        {"$set": {
+            "active": new_status,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+    
+    status_msg = "activated" if new_status else "deactivated"
+    
+    return {
+        "success": True,
+        "active": new_status,
+        "message": f"Trading bot {status_msg} successfully"
+    }
+
+@api_router.get("/trading/history", response_model=List[TradeHistoryItem])
+async def get_trade_history(current_user: dict = Depends(get_current_user)):
+    # Get all trade history for current user
+    cursor = db.trade_history.find({"user_id": current_user["id"]})
+    history = await cursor.to_list(length=100)
+    
+    return history
+
+# Add routers to the main app
 app.include_router(api_router)
+app.include_router(trading_router)
 
 # Add CORS middleware
 app.add_middleware(
@@ -651,10 +1032,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount static files for frontend
+app.mount("/", StaticFiles(directory="frontend/build", html=True), name="static")
+
 # Root endpoint
-@app.get("/")
+@app.get("/api")
 async def root():
-    return {"message": "Welcome to the Ticket Manager API"}
+    return {"message": "Welcome to the Ticket Manager & Trading Bot API"}
 
 # Run the app
 if __name__ == "__main__":
