@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+// import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { PaymentElement, Elements, useStripe, useElements } from "@stripe/react-stripe-js";
-import { loadStripe } from "@stripe/stripe-js";
+// import { PaymentElement, Elements, useStripe, useElements } from "@stripe/react-stripe-js";
+// import { loadStripe } from "@stripe/stripe-js";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import TradingViewWidget, { Themes } from 'react-tradingview-widget';
+// import TradingViewWidget, { Themes } from 'react-tradingview-widget';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
 const API = `${BACKEND_URL}/api`;
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
+// const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
 
 // Dark mode context
 const ThemeContext = React.createContext();
@@ -1691,7 +1691,7 @@ const EventDetails = ({ event, onBack, setActiveView }) => {
   );
 };
 
-const MyTickets = () => {
+const MyTickets = ({ setActiveView }) => {
   const { user } = useAuth();
   const { darkMode } = useTheme();
   const [tickets, setTickets] = useState([]);
@@ -3725,20 +3725,13 @@ const TradingOverview = () => {
       <div className="overview-section chart-section">
         <h3>Bitcoin/USDT Chart</h3>
         <div className="trading-view-chart">
-          <TradingViewWidget
-            symbol="BINANCE:BTCUSDT"
-            theme={Themes.DARK}
-            autosize
-            interval="60"
-            timezone="Etc/UTC"
-            style="1"
-            locale="en"
-            toolbar_bg="#f1f3f6"
-            enable_publishing={false}
-            hide_side_toolbar={false}
-            allow_symbol_change={true}
-            studies={["RSI@tv-basicstudies", "MACD@tv-basicstudies"]}
-          />
+          <div className="chart-placeholder">
+            <div className="placeholder-content">
+              <h4>📈 Trading Chart</h4>
+              <p>Advanced trading chart will be available here</p>
+              <small>Bitcoin/USDT - Real-time data</small>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -5619,7 +5612,7 @@ const App = () => {
               {activeView === 'events' && <Events setActiveView={setActiveView} />}
               {activeView === 'login' && <Login setActiveView={setActiveView} />}
               {activeView === 'register' && <Register setActiveView={setActiveView} />}
-              {activeView === 'tickets' && <MyTickets />}
+              {activeView === 'tickets' && <MyTickets setActiveView={setActiveView} />}
               {activeView === 'trading' && <TradingDashboard />}
               {activeView === 'admin' && <AdminDashboard />}
               {activeView === 'profile' && <Profile />}
