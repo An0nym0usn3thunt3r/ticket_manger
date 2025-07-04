@@ -9,6 +9,12 @@ import "react-toastify/dist/ReactToastify.css";
 // import { loadStripe } from "@stripe/stripe-js";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 // import TradingViewWidget, { Themes } from 'react-tradingview-widget';
+// import { 
+//   Events3DGrid, 
+//   Hero3D, 
+//   Scene3DBackground, 
+//   Nav3DElements 
+// } from './3DComponents';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
 const API = `${BACKEND_URL}/api`;
@@ -963,11 +969,14 @@ const Events = ({ setActiveView }) => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [filter, setFilter] = useState('all'); // all, upcoming, ongoing, completed
   const [searchTerm, setSearchTerm] = useState('');
+  const [view3D, setView3D] = useState(false);
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
+        console.log('Fetching events from:', `${API}/events`);
         const response = await axios.get(`${API}/events`);
+        console.log('Events response:', response.data);
         setEvents(response.data);
       } catch (error) {
         toast.error('Failed to fetch events');
@@ -987,7 +996,7 @@ const Events = ({ setActiveView }) => {
   const handleBackToEvents = () => {
     setSelectedEvent(null);
   };
-  
+
   const filteredEvents = events
     .filter(event => {
       // Apply status filter
@@ -1020,9 +1029,15 @@ const Events = ({ setActiveView }) => {
       ) : (
         <>
           <div className="events-header">
-            <h2>Discover Events</h2>
+            <motion.h2
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              Discover Events
+            </motion.h2>
             <div className="events-actions">
-              <div className="search-bar">
+              <div className="search-bar glassmorphism">
                 <input
                   type="text"
                   placeholder="Search events..."
@@ -1051,28 +1066,79 @@ const Events = ({ setActiveView }) => {
                   Ongoing
                 </button>
               </div>
+              <div className="view-toggle">
+                <button 
+                  className={!view3D ? 'active' : ''} 
+                  onClick={() => setView3D(false)}
+                  title="Grid View"
+                >
+                  📋
+                </button>
+                <button 
+                  className={view3D ? 'active' : ''} 
+                  onClick={() => setView3D(true)}
+                  title="3D View"
+                >
+                  🌐
+                </button>
+              </div>
             </div>
           </div>
-          
-          {filteredEvents.length > 0 ? (
-            <div className="events-grid">
-              {filteredEvents.map(event => (
-                <EventCard 
-                  key={event.id} 
-                  event={event} 
-                  onSelect={handleEventSelect} 
-                />
+
+          {/* view3D && filteredEvents.length > 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8 }}
+            >
+              <Events3DGrid 
+                events={filteredEvents} 
+                onEventSelect={handleEventSelect}
+              />
+            </motion.div>
+          ) : */ filteredEvents.length > 0 ? (
+            <motion.div 
+              className="events-grid interactive-3d"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              {filteredEvents.map((event, index) => (
+                <motion.div
+                  key={event.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  className="card-3d"
+                >
+                  <EventCard 
+                    event={event} 
+                    onSelect={handleEventSelect} 
+                  />
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           ) : (
-            <div className="no-events">
-              <div className="no-events-icon">🔍</div>
+            <motion.div 
+              className="no-events glassmorphism"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="no-events-icon floating-element">🔍</div>
               <p>No events found matching your criteria.</p>
-              <button onClick={() => {
-                setFilter('all');
-                setSearchTerm('');
-              }}>Clear Filters</button>
-            </div>
+              <motion.button 
+                onClick={() => {
+                  setFilter('all');
+                  setSearchTerm('');
+                }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="neon-glow"
+              >
+                Clear Filters
+              </motion.button>
+            </motion.div>
           )}
         </>
       )}
@@ -5271,40 +5337,60 @@ const HomePage = ({ setActiveView }) => {
   return (
     <div className={`home-container ${darkMode ? 'dark' : ''}`}>
       <div className="hero-section">
-        <motion.div 
-          className="hero-content"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-        >
-          <h1>Welcome to TicketVerse & Trading</h1>
-          <p>Your one-stop platform for event tickets and algorithmic trading</p>
-          <div className="hero-buttons">
-            <motion.button 
-              className="cta-button tickets-btn"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={navigateToEvents}
-            >
-              <span className="btn-icon">🎭</span>
-              Browse Events
-            </motion.button>
-            <motion.button 
-              className="cta-button trading-btn"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={navigateToTrading}
-            >
-              <span className="btn-icon">📈</span>
-              Start Trading
-            </motion.button>
+        {/* <Hero3D /> */}
+        <div className="hero-placeholder" style={{ 
+          height: '60vh', 
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          color: 'white',
+          textAlign: 'center'
+        }}>
+          <div>
+            <h1>Welcome to TicketVerse & Trading 3D</h1>
+            <p>Experience the future of event ticketing and algorithmic trading</p>
           </div>
-          {!user && (
-            <div className="hero-signup">
-              <p>New here? <span className="signup-link" onClick={navigateToLogin}>Sign up</span> and get your first ticket discount!</p>
+        </div>
+        <div className="hero-overlay-content">
+          <motion.div 
+            className="hero-content"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8, duration: 0.5 }}
+          >
+            <div className="hero-buttons">
+              <motion.button 
+                className="cta-button tickets-btn glassmorphism"
+                whileHover={{ scale: 1.05, rotateY: 5 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={navigateToEvents}
+              >
+                <span className="btn-icon">🎭</span>
+                Browse Events
+              </motion.button>
+              <motion.button 
+                className="cta-button trading-btn glassmorphism"
+                whileHover={{ scale: 1.05, rotateY: -5 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={navigateToTrading}
+              >
+                <span className="btn-icon">📈</span>
+                Start Trading
+              </motion.button>
             </div>
-          )}
-        </motion.div>
+            {!user && (
+              <motion.div 
+                className="hero-signup"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.2, duration: 0.5 }}
+              >
+                <p>New here? <span className="signup-link" onClick={navigateToLogin}>Sign up</span> and get your first ticket discount!</p>
+              </motion.div>
+            )}
+          </motion.div>
+        </div>
       </div>
       
       {featuredEvents.length > 0 && (
@@ -5604,6 +5690,7 @@ const App = () => {
     <ThemeProvider>
       <AuthProvider>
         <div className="app-container">
+          {/* <Nav3DElements /> */}
           <Navbar setActiveView={setActiveView} activeView={activeView} />
           
           <main className="main-content">
